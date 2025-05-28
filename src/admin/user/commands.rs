@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt::Write as _};
 
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use ruma::{
 	OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedUserId, UserId,
 	events::{
@@ -18,7 +18,7 @@ use tuwunel_api::client::{
 };
 use tuwunel_core::{
 	Err, Result, debug, debug_warn, error, info, is_equal_to,
-	matrix::pdu::PduBuilder,
+	matrix::{Event, pdu::PduBuilder},
 	utils::{self, ReadyExt},
 	warn,
 };
@@ -68,7 +68,8 @@ pub(super) async fn create_user(&self, username: String, password: Option<String
 	// Create user
 	self.services
 		.users
-		.create(&user_id, Some(password.as_str()))?;
+		.create(&user_id, Some(password.as_str()), None)
+		.await?;
 
 	// Default to pretty displayname
 	let mut displayname = user_id.localpart().to_owned();
@@ -262,6 +263,7 @@ pub(super) async fn reset_password(&self, username: String, password: Option<Str
 		.services
 		.users
 		.set_password(&user_id, Some(new_password.as_str()))
+		.await
 	{
 		| Err(e) => return Err!("Couldn't reset the password for user {user_id}: {e}"),
 		| Ok(()) => {
@@ -687,7 +689,9 @@ pub(super) async fn force_leave_room(
 		return Err!("{user_id} is not joined in the room");
 	}
 
-	leave_room(self.services, &user_id, &room_id, None).await?;
+	leave_room(self.services, &user_id, &room_id, None)
+		.boxed()
+		.await?;
 
 	self.write_str(&format!("{user_id} has left {room_id}.",))
 		.await
@@ -735,7 +739,7 @@ pub(super) async fn force_demote(&self, user_id: String, room_id: OwnedRoomOrAli
 		.state_accessor
 		.room_state_get(&room_id, &StateEventType::RoomCreate, "")
 		.await
-		.is_ok_and(|event| event.sender == user_id);
+		.is_ok_and(|event| event.sender() == user_id);
 
 	if !user_can_demote_self {
 		return Err!("User is not allowed to modify their own power levels in the room.",);
@@ -892,10 +896,11 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 		return Err!("Event is already redacted.");
 	}
 
-	let room_id = event.room_id;
-	let sender_user = event.sender;
-
-	if !self.services.globals.user_is_local(&sender_user) {
+	if !self
+		.services
+		.globals
+		.user_is_local(event.sender())
+	{
 		return Err!("This command only works on local users.");
 	}
 
@@ -910,7 +915,7 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 			.rooms
 			.state
 			.mutex
-			.lock(&room_id)
+			.lock(event.room_id())
 			.await;
 
 		self.services
@@ -918,14 +923,14 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 			.timeline
 			.build_and_append_pdu(
 				PduBuilder {
-					redacts: Some(event.event_id.clone()),
+					redacts: Some(event.event_id().to_owned()),
 					..PduBuilder::timeline(&RoomRedactionEventContent {
-						redacts: Some(event.event_id.clone()),
+						redacts: Some(event.event_id().to_owned()),
 						reason: Some(reason),
 					})
 				},
-				&sender_user,
-				&room_id,
+				event.sender(),
+				event.room_id(),
 				&state_lock,
 			)
 			.await?

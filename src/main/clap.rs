@@ -58,15 +58,30 @@ pub(crate) struct Args {
 	pub(crate) worker_threads: usize,
 
 	/// Override the tokio global_queue_interval.
-	#[arg(long, hide(true), env = "TOKIO_GLOBAL_QUEUE_INTERVAL", default_value = "192")]
+	#[arg(
+		long,
+		hide(true),
+		env = "TOKIO_GLOBAL_QUEUE_INTERVAL",
+		default_value = "192"
+	)]
 	pub(crate) global_event_interval: u32,
 
 	/// Override the tokio event_interval.
-	#[arg(long, hide(true), env = "TOKIO_EVENT_INTERVAL", default_value = "512")]
+	#[arg(
+		long,
+		hide(true),
+		env = "TOKIO_EVENT_INTERVAL",
+		default_value = "512"
+	)]
 	pub(crate) kernel_event_interval: u32,
 
 	/// Override the tokio max_io_events_per_tick.
-	#[arg(long, hide(true), env = "TOKIO_MAX_IO_EVENTS_PER_TICK", default_value = "512")]
+	#[arg(
+		long,
+		hide(true),
+		env = "TOKIO_MAX_IO_EVENTS_PER_TICK",
+		default_value = "512"
+	)]
 	pub(crate) kernel_events_per_tick: usize,
 
 	/// Set the histogram bucket size, in microseconds (tokio_unstable). Default
@@ -74,11 +89,21 @@ pub(crate) struct Args {
 	/// with the exception of the last bucket, try increasing this value to e.g.
 	/// 50 or 100. Inversely, decrease to 10 etc if the histogram lacks
 	/// resolution.
-	#[arg(long, hide(true), env = "TUWUNEL_RUNTIME_HISTOGRAM_INTERVAL", default_value = "25")]
+	#[arg(
+		long,
+		hide(true),
+		env = "TUWUNEL_RUNTIME_HISTOGRAM_INTERVAL",
+		default_value = "25"
+	)]
 	pub(crate) worker_histogram_interval: u64,
 
 	/// Set the histogram bucket count (tokio_unstable). Default is 20.
-	#[arg(long, hide(true), env = "TUWUNEL_RUNTIME_HISTOGRAM_BUCKETS", default_value = "20")]
+	#[arg(
+		long,
+		hide(true),
+		env = "TUWUNEL_RUNTIME_HISTOGRAM_BUCKETS",
+		default_value = "20"
+	)]
 	pub(crate) worker_histogram_buckets: usize,
 
 	/// Toggles worker affinity feature.

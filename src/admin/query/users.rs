@@ -94,6 +94,39 @@ pub(crate) enum UsersCommand {
 		user_a: OwnedUserId,
 		user_b: OwnedUserId,
 	},
+
+	SearchLdap {
+		user_id: OwnedUserId,
+	},
+
+	AuthLdap {
+		user_dn: String,
+		password: String,
+	},
+}
+
+#[admin_command]
+async fn auth_ldap(&self, user_dn: String, password: String) -> Result {
+	let timer = tokio::time::Instant::now();
+	let result = self
+		.services
+		.users
+		.auth_ldap(&user_dn, &password)
+		.await;
+	let query_time = timer.elapsed();
+
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
+}
+
+#[admin_command]
+async fn search_ldap(&self, user_id: OwnedUserId) -> Result {
+	let timer = tokio::time::Instant::now();
+	let result = self.services.users.search_ldap(&user_id).await;
+	let query_time = timer.elapsed();
+
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]

@@ -1,0 +1,156 @@
+name: Testing
+
+on:
+  workflow_call:
+    inputs:
+      cargo_profiles:
+        type: string
+        description: Cargo profiles
+      feat_sets:
+        type: string
+        description: Cargo feature groups
+      rust_toolchains:
+        type: string
+        description: Rust toolchains
+      sys_names:
+        type: string
+        description: System names
+      sys_versions:
+        type: string
+        description: System versions
+      rust_targets:
+        type: string
+        description: Rust targets
+      sys_targets:
+        type: string
+        description: System targets
+      machines:
+        type: string
+        description: Hardware platform vector
+      excludes:
+        type: string
+        default: '[]'
+        description: Matrix exclusions
+      includes:
+        type: string
+        default: '[]'
+        description: Matrix inclusions
+      complement:
+        type: boolean
+        default: true
+      complement_feat_sets:
+        type: string
+        default: '["all"]'
+
+jobs:
+  unit:
+    if: ${{contains(fromJSON(inputs.cargo_profiles), fromJSON('["test"]')[0]) && contains(fromJSON(inputs.feat_sets), fromJSON('["all"]')[0]) && contains(fromJSON(inputs.rust_toolchains), fromJSON('["nightly"]')[0])}}
+    name: Unit
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["tests-unit"]'
+      cargo_profiles: '["test"]'
+      feat_sets: '["all"]'
+      rust_toolchains: ${{inputs.rust_toolchains}}
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: ${{inputs.excludes}}
+      includes: ${{inputs.includes}}
+
+  smoke:
+    name: Smoke
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["tests-smoke"]'
+      cargo_profiles: ${{inputs.cargo_profiles}}
+      feat_sets: ${{inputs.feat_sets}}
+      rust_toolchains: ${{inputs.rust_toolchains}}
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: '[{"cargo_profile": "release", "rust_toolchain": "nightly"}, {"cargo_profile": "release-debuginfo", "rust_toolchain": "nightly"}, {"cargo_profile": "test", "feat_set": "default"}, {"cargo_profile": "release-max-perf", "rust_toolchain": "stable"}, {"cargo_profile": "release-max-perf", "feat_set": "none"}]'
+      includes: ${{inputs.includes}}
+
+  complement:
+    if: ${{inputs.complement && contains(fromJSON(inputs.cargo_profiles), fromJSON('["test"]')[0]) && contains(fromJSON(inputs.feat_sets), fromJSON('["all"]')[0]) && contains(fromJSON(inputs.rust_toolchains), fromJSON('["nightly"]')[0])}}
+    name: Complement
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["complement-tester", "complement-testee"]'
+      cargo_profiles: '["test"]'
+      feat_sets: ${{inputs.complement_feat_sets}}
+      rust_toolchains: '["nightly"]'
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: ${{inputs.excludes}}
+      includes: ${{inputs.includes}}
+
+  compliance:
+    if: ${{inputs.complement && contains(fromJSON(inputs.cargo_profiles), fromJSON('["test"]')[0]) && contains(fromJSON(inputs.feat_sets), fromJSON('["all"]')[0]) && contains(fromJSON(inputs.rust_toolchains), fromJSON('["nightly"]')[0])}}
+    name: Matrix Compliance
+    needs: [complement]
+    runs-on: ${{matrix.machine}}
+    concurrency:
+      group: complement-cant-walk-and-chew-bubblegum
+      cancel-in-progress: false
+
+    strategy:
+      fail-fast: false
+      matrix:
+        cargo_profile: ${{fromJSON('["test"]')}}
+        feat_set: ${{fromJSON(inputs.complement_feat_sets)}}
+        rust_toolchain: ${{fromJSON('["nightly"]')}}
+        sys_name: ${{fromJSON(inputs.sys_names)}}
+        sys_version: ${{fromJSON(inputs.sys_versions)}}
+        rust_target: ${{fromJSON(inputs.rust_targets)}}
+        sys_target: ${{fromJSON(inputs.sys_targets)}}
+        machine: ${{fromJSON(inputs.machines)}}
+        exclude: ${{fromJSON(inputs.excludes)}}
+        include: ${{fromJSON(inputs.includes)}}
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Execute
+      id: execute
+      env:
+        cargo_profile: ${{matrix.cargo_profile}}
+        rust_toolchain: ${{matrix.rust_toolchain}}
+        rust_target: ${{matrix.rust_target}}
+        feat_set: ${{matrix.feat_set}}
+        sys_name: ${{matrix.sys_name}}
+        sys_target: ${{matrix.sys_target}}
+        sys_version: ${{matrix.sys_version}}
+        machine: ${{matrix.machine}}
+
+      run: |
+        docker/complement.sh
+
+    - name: Extract
+      id: extract
+      env:
+        name: complement_tester__${{matrix.cargo_profile}}__${{matrix.rust_toolchain}}__${{matrix.rust_target}}__${{matrix.feat_set}}__${{matrix.sys_name}}__${{matrix.sys_version}}__${{matrix.sys_target}}
+        tag: latest
+
+      run: |
+        cid=$(cat "$name")
+        docker cp "$cid:/usr/src/complement/new_results.jsonl" tests/test_results/complement/test_results.jsonl
+
+    - name: Upload
+      id: upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: test_results.${{matrix.feat_set}}.${{matrix.sys_name}}.${{matrix.sys_target}}.jsonl
+        path: ./tests/test_results/complement/test_results.jsonl
+
+    - name: Accept
+      id: accept
+      run: |
+        git diff --exit-code --color --color-moved

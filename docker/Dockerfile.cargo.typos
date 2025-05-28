@@ -1,0 +1,21 @@
+# syntax = docker/dockerfile:1.11-labs
+
+FROM input AS typos
+ARG rust_toolchain="nightly"
+ARG RUSTUP_HOME
+ARG CARGO_HOME
+ARG typos_args=""
+
+WORKDIR /usr/src/tuwunel
+RUN \
+--mount=type=cache,dst=${RUSTUP_HOME},sharing=locked \
+--mount=type=cache,dst=${CARGO_HOME},sharing=locked \
+<<EOF
+    set -eux
+    rustup run ${rust_toolchain} \
+        typos \
+            --color always \
+            --exclude docker \
+            --exclude nix \
+            ${typos_args}
+EOF

@@ -6,15 +6,12 @@ use ruma::{
 };
 use tuwunel_core::{
 	Result,
-	utils::{
-		future::BoolExt,
-		stream::{BroadbandExt, ReadyExt},
-	},
+	utils::{future::BoolExt, stream::BroadbandExt},
 };
 
 use crate::Ruma;
 
-// conduwuit can handle a lot more results than synapse
+// Tuwunel can handle a lot more results than synapse
 const LIMIT_MAX: usize = 500;
 const LIMIT_DEFAULT: usize = 10;
 
@@ -37,22 +34,21 @@ pub(crate) async fn search_users_route(
 	let mut users = services
 		.users
 		.stream()
-		.ready_filter(|user_id| {
-			user_id
-				.as_str()
-				.to_lowercase()
-				.contains(&search_term)
-		})
 		.map(ToOwned::to_owned)
 		.broad_filter_map(async |user_id| {
 			let display_name = services.users.displayname(&user_id).await.ok();
+
+			let user_id_matches = user_id
+				.as_str()
+				.to_lowercase()
+				.contains(&search_term);
 
 			let display_name_matches = display_name
 				.as_deref()
 				.map(str::to_lowercase)
 				.is_some_and(|display_name| display_name.contains(&search_term));
 
-			if !display_name_matches {
+			if !user_id_matches && !display_name_matches {
 				return None;
 			}
 

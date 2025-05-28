@@ -79,19 +79,14 @@ pub(crate) async fn get_pushrules_all_route(
 
 			global_ruleset.update_with_server_default(Ruleset::server_default(sender_user));
 
+			let ty = GlobalAccountDataEventType::PushRules;
+			let event = PushRulesEvent {
+				content: PushRulesEventContent { global: global_ruleset.clone() },
+			};
+
 			services
 				.account_data
-				.update(
-					None,
-					sender_user,
-					GlobalAccountDataEventType::PushRules
-						.to_string()
-						.into(),
-					&serde_json::to_value(PushRulesEvent {
-						content: PushRulesEventContent { global: global_ruleset.clone() },
-					})
-					.expect("to json always works"),
-				)
+				.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(event)?)
 				.await?;
 		}
 	};
@@ -108,10 +103,7 @@ pub(crate) async fn get_pushrules_global_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_pushrules_global_scope::v3::Request>,
 ) -> Result<get_pushrules_global_scope::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	let Some(content_value) = services
 		.account_data
@@ -123,21 +115,17 @@ pub(crate) async fn get_pushrules_global_route(
 	else {
 		// user somehow has non-existent push rule event. recreate it and return server
 		// default silently
+
+		let ty = GlobalAccountDataEventType::PushRules;
+		let event = PushRulesEvent {
+			content: PushRulesEventContent {
+				global: Ruleset::server_default(sender_user),
+			},
+		};
+
 		services
 			.account_data
-			.update(
-				None,
-				sender_user,
-				GlobalAccountDataEventType::PushRules
-					.to_string()
-					.into(),
-				&serde_json::to_value(PushRulesEvent {
-					content: PushRulesEventContent {
-						global: Ruleset::server_default(sender_user),
-					},
-				})
-				.expect("to json always works"),
-			)
+			.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(event)?)
 			.await?;
 
 		return Ok(get_pushrules_global_scope::v3::Response {
@@ -235,7 +223,7 @@ pub(crate) async fn get_pushrule_route(
 	if let Some(rule) = rule {
 		Ok(get_pushrule::v3::Response { rule })
 	} else {
-		Err(Error::BadRequest(ErrorKind::NotFound, "Push rule not found."))
+		Err!(Request(NotFound("Push rule not found.")))
 	}
 }
 
@@ -246,12 +234,8 @@ pub(crate) async fn set_pushrule_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_pushrule::v3::Request>,
 ) -> Result<set_pushrule::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
-	let body = body.body;
-
+	let sender_user = body.sender_user();
+	let body = &body.body;
 	let mut account_data: PushRulesEvent = services
 		.account_data
 		.get_global(sender_user, GlobalAccountDataEventType::PushRules)
@@ -290,16 +274,10 @@ pub(crate) async fn set_pushrule_route(
 		return Err(err);
 	}
 
+	let ty = GlobalAccountDataEventType::PushRules;
 	services
 		.account_data
-		.update(
-			None,
-			sender_user,
-			GlobalAccountDataEventType::PushRules
-				.to_string()
-				.into(),
-			&serde_json::to_value(account_data).expect("to json value always works"),
-		)
+		.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(account_data)?)
 		.await?;
 
 	Ok(set_pushrule::v3::Response {})
@@ -312,10 +290,7 @@ pub(crate) async fn get_pushrule_actions_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_pushrule_actions::v3::Request>,
 ) -> Result<get_pushrule_actions::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	// remove old deprecated mentions push rules as per MSC4210
 	#[allow(deprecated)]
@@ -349,10 +324,7 @@ pub(crate) async fn set_pushrule_actions_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_pushrule_actions::v3::Request>,
 ) -> Result<set_pushrule_actions::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	let mut account_data: PushRulesEvent = services
 		.account_data
@@ -366,19 +338,13 @@ pub(crate) async fn set_pushrule_actions_route(
 		.set_actions(body.kind.clone(), &body.rule_id, body.actions.clone())
 		.is_err()
 	{
-		return Err(Error::BadRequest(ErrorKind::NotFound, "Push rule not found."));
+		return Err!(Request(NotFound("Push rule not found.")));
 	}
 
+	let ty = GlobalAccountDataEventType::PushRules;
 	services
 		.account_data
-		.update(
-			None,
-			sender_user,
-			GlobalAccountDataEventType::PushRules
-				.to_string()
-				.into(),
-			&serde_json::to_value(account_data).expect("to json value always works"),
-		)
+		.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(account_data)?)
 		.await?;
 
 	Ok(set_pushrule_actions::v3::Response {})
@@ -391,10 +357,7 @@ pub(crate) async fn get_pushrule_enabled_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_pushrule_enabled::v3::Request>,
 ) -> Result<get_pushrule_enabled::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	// remove old deprecated mentions push rules as per MSC4210
 	#[allow(deprecated)]
@@ -428,10 +391,7 @@ pub(crate) async fn set_pushrule_enabled_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_pushrule_enabled::v3::Request>,
 ) -> Result<set_pushrule_enabled::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	let mut account_data: PushRulesEvent = services
 		.account_data
@@ -445,19 +405,13 @@ pub(crate) async fn set_pushrule_enabled_route(
 		.set_enabled(body.kind.clone(), &body.rule_id, body.enabled)
 		.is_err()
 	{
-		return Err(Error::BadRequest(ErrorKind::NotFound, "Push rule not found."));
+		return Err!(Request(NotFound("Push rule not found.")));
 	}
 
+	let ty = GlobalAccountDataEventType::PushRules;
 	services
 		.account_data
-		.update(
-			None,
-			sender_user,
-			GlobalAccountDataEventType::PushRules
-				.to_string()
-				.into(),
-			&serde_json::to_value(account_data).expect("to json value always works"),
-		)
+		.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(account_data)?)
 		.await?;
 
 	Ok(set_pushrule_enabled::v3::Response {})
@@ -470,10 +424,7 @@ pub(crate) async fn delete_pushrule_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_pushrule::v3::Request>,
 ) -> Result<delete_pushrule::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	let mut account_data: PushRulesEvent = services
 		.account_data
@@ -500,16 +451,10 @@ pub(crate) async fn delete_pushrule_route(
 		return Err(err);
 	}
 
+	let ty = GlobalAccountDataEventType::PushRules;
 	services
 		.account_data
-		.update(
-			None,
-			sender_user,
-			GlobalAccountDataEventType::PushRules
-				.to_string()
-				.into(),
-			&serde_json::to_value(account_data).expect("to json value always works"),
-		)
+		.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(account_data)?)
 		.await?;
 
 	Ok(delete_pushrule::v3::Response {})
@@ -522,10 +467,7 @@ pub(crate) async fn get_pushers_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_pushers::v3::Request>,
 ) -> Result<get_pushers::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	Ok(get_pushers::v3::Response {
 		pushers: services.pusher.get_pushers(sender_user).await,
@@ -541,10 +483,7 @@ pub(crate) async fn set_pushers_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_pusher::v3::Request>,
 ) -> Result<set_pusher::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	services
 		.pusher
@@ -560,21 +499,16 @@ async fn recreate_push_rules_and_return(
 	services: &Services,
 	sender_user: &ruma::UserId,
 ) -> Result<get_pushrules_all::v3::Response> {
+	let ty = GlobalAccountDataEventType::PushRules;
+	let event = PushRulesEvent {
+		content: PushRulesEventContent {
+			global: Ruleset::server_default(sender_user),
+		},
+	};
+
 	services
 		.account_data
-		.update(
-			None,
-			sender_user,
-			GlobalAccountDataEventType::PushRules
-				.to_string()
-				.into(),
-			&serde_json::to_value(PushRulesEvent {
-				content: PushRulesEventContent {
-					global: Ruleset::server_default(sender_user),
-				},
-			})
-			.expect("to json always works"),
-		)
+		.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(event)?)
 		.await?;
 
 	Ok(get_pushrules_all::v3::Response {

@@ -7,7 +7,7 @@ use ruma::{
 	},
 	push::Ruleset,
 };
-use tuwunel_core::{Result, error, warn};
+use tuwunel_core::{Result, debug_warn, error, warn};
 
 use crate::{Dep, account_data, config, globals, users};
 
@@ -37,16 +37,30 @@ impl crate::Service for Service {
 	}
 
 	async fn worker(self: Arc<Self>) -> Result {
+		if self
+			.services
+			.config
+			.emergency_password
+			.as_ref()
+			.is_none_or(String::is_empty)
+		{
+			return Ok(());
+		}
+
 		if self.services.globals.is_read_only() {
+			debug_warn!("emergency password feature ignored in read_only mode.");
+			return Ok(());
+		}
+
+		if self.services.config.ldap.enable {
+			warn!("emergency password feature not available with LDAP enabled.");
 			return Ok(());
 		}
 
 		self.set_emergency_access()
 			.await
 			.inspect_err(|e| {
-				error!(
-					"Could not set the configured emergency password for the server user: {e}"
-				);
+				error!("Failed to set the emergency password for the server user: {e}");
 			})
 	}
 
@@ -63,7 +77,8 @@ impl Service {
 
 		self.services
 			.users
-			.set_password(server_user, self.services.config.emergency_password.as_deref())?;
+			.set_password(server_user, self.services.config.emergency_password.as_deref())
+			.await?;
 
 		let (ruleset, pwd_set) = match self.services.config.emergency_password {
 			| Some(_) => (Ruleset::server_default(server_user), true),

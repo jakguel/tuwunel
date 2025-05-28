@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use ruma::{OwnedRoomId, OwnedRoomOrAliasId, RoomAliasId, RoomId, RoomOrAliasId};
 use tuwunel_api::client::leave_room;
 use tuwunel_core::{
@@ -161,7 +161,10 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 			 evicting admins too)",
 		);
 
-		if let Err(e) = leave_room(self.services, user_id, &room_id, None).await {
+		if let Err(e) = leave_room(self.services, user_id, &room_id, None)
+			.boxed()
+			.await
+		{
 			warn!("Failed to leave room: {e}");
 		}
 
@@ -341,7 +344,10 @@ async fn ban_list_of_rooms(&self) -> Result {
 				 evicting admins too)",
 			);
 
-			if let Err(e) = leave_room(self.services, user_id, &room_id, None).await {
+			if let Err(e) = leave_room(self.services, user_id, &room_id, None)
+				.boxed()
+				.await
+			{
 				warn!("Failed to leave room: {e}");
 			}
 

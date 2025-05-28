@@ -187,7 +187,10 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 		visitor.visit_seq(self)
 	}
 
-	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip(self, visitor)))]
+	#[cfg_attr(
+		unabridged,
+		tracing::instrument(level = "trace", skip(self, visitor))
+	)]
 	fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value>
 	where
 		V: Visitor<'de>,
@@ -196,7 +199,10 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 		visitor.visit_seq(self)
 	}
 
-	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip(self, visitor)))]
+	#[cfg_attr(
+		unabridged,
+		tracing::instrument(level = "trace", skip(self, visitor))
+	)]
 	fn deserialize_tuple_struct<V>(
 		self,
 		_name: &'static str,
@@ -220,7 +226,10 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 		d.deserialize_map(visitor).map_err(Into::into)
 	}
 
-	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip(self, visitor)))]
+	#[cfg_attr(
+		unabridged,
+		tracing::instrument(level = "trace", skip(self, visitor))
+	)]
 	fn deserialize_struct<V>(
 		self,
 		name: &'static str,
@@ -236,7 +245,10 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 			.map_err(Into::into)
 	}
 
-	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip(self, visitor)))]
+	#[cfg_attr(
+		unabridged,
+		tracing::instrument(level = "trace", skip(self, visitor))
+	)]
 	fn deserialize_unit_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
 	where
 		V: Visitor<'de>,
@@ -250,7 +262,10 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 		visitor.visit_unit()
 	}
 
-	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip(self, visitor)))]
+	#[cfg_attr(
+		unabridged,
+		tracing::instrument(level = "trace", skip(self, visitor))
+	)]
 	fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
 	where
 		V: Visitor<'de>,
@@ -265,7 +280,10 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 		}
 	}
 
-	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip(self, _visitor)))]
+	#[cfg_attr(
+		unabridged,
+		tracing::instrument(level = "trace", skip(self, _visitor))
+	)]
 	fn deserialize_enum<V>(
 		self,
 		_name: &'static str,
@@ -440,7 +458,10 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 impl<'a, 'de: 'a> de::SeqAccess<'de> for &'a mut Deserializer<'de> {
 	type Error = Error;
 
-	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip(self, seed)))]
+	#[cfg_attr(
+		unabridged,
+		tracing::instrument(level = "trace", skip(self, seed))
+	)]
 	fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
 	where
 		T: DeserializeSeed<'de>,
@@ -459,7 +480,10 @@ impl<'a, 'de: 'a> de::SeqAccess<'de> for &'a mut Deserializer<'de> {
 impl<'a, 'de: 'a> de::MapAccess<'de> for &'a mut Deserializer<'de> {
 	type Error = Error;
 
-	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip(self, seed)))]
+	#[cfg_attr(
+		unabridged,
+		tracing::instrument(level = "trace", skip(self, seed))
+	)]
 	fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
 	where
 		K: DeserializeSeed<'de>,
@@ -467,7 +491,10 @@ impl<'a, 'de: 'a> de::MapAccess<'de> for &'a mut Deserializer<'de> {
 		seed.deserialize(&mut **self).map(Some)
 	}
 
-	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip(self, seed)))]
+	#[cfg_attr(
+		unabridged,
+		tracing::instrument(level = "trace", skip(self, seed))
+	)]
 	fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
 	where
 		V: DeserializeSeed<'de>,

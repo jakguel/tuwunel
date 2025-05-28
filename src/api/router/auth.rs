@@ -297,7 +297,7 @@ async fn auth_server(
 		if request.parts.uri.to_string().contains('@') {
 			warn!(
 				"Request uri contained '@' character. Make sure your reverse proxy gives \
-				 conduwuit the raw uri (apache: use nocanon)"
+				 tuwunel the raw uri (apache: use nocanon)"
 			);
 		}
 

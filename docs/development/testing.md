@@ -5,7 +5,7 @@
 Have a look at [Complement's repository][complement] for an explanation of what
 it is.
 
-To test against Complement, with Nix (or [Lix](https://lix.systems) and
+To test against Complement, with Nix and
 [direnv installed and set up][direnv] (run `direnv allow` after setting up the hook), you can:
 
 * Run `./bin/complement "$COMPLEMENT_SRC"` to build a Complement image, run
@@ -24,8 +24,8 @@ and run the script.
 If you're on macOS and need to build an image, run `nix build .#linux-complement`.
 
 We have a Complement fork as some tests have needed to be fixed. This can be found
-at: <https://github.com/girlbossceo/complement>
+at: <https://github.com/matrix-construct/complement>
 
-[ci-workflows]: https://github.com/girlbossceo/conduwuit/actions/workflows/ci.yml?query=event%3Apush+is%3Asuccess+actor%3Agirlbossceo
+[ci-workflows]: https://github.com/matrix-construct/tuwunel/actions/workflows/ci.yml?query=event%3Apush+is%3Asuccess+actor%3Ajevolk
 [complement]: https://github.com/matrix-org/complement
 [direnv]: https://direnv.net/docs/hook.html

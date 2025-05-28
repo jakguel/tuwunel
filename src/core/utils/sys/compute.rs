@@ -25,7 +25,7 @@ static NODE_TOPOLOGY: LazyLock<Masks> = LazyLock::new(init_node_topology);
 thread_local! {
 	/// Tracks the affinity for this thread. This is updated when affinities
 	/// are set via our set_affinity() interface.
-	static CORE_AFFINITY: Cell<Mask> = Cell::default();
+	static CORE_AFFINITY: Cell<Mask> = const { Cell::new(0) };
 }
 
 /// Set the core affinity for this thread. The ID should be listed in

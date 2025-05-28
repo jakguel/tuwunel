@@ -1,5 +1,5 @@
 use axum::extract::State;
-use futures::TryStreamExt;
+use futures::{FutureExt, TryStreamExt};
 use ruma::{
 	OwnedEventId, RoomId, UserId,
 	api::client::state::{get_state_events, get_state_events_for_key, send_state_event},
@@ -15,9 +15,10 @@ use ruma::{
 	},
 	serde::Raw,
 };
+use serde_json::json;
 use tuwunel_core::{
 	Err, Result, err,
-	matrix::pdu::{PduBuilder, PduEvent},
+	matrix::{Event, pdu::PduBuilder},
 	utils::BoolExt,
 };
 use tuwunel_service::Services;
@@ -59,6 +60,7 @@ pub(crate) async fn send_state_event_for_empty_key_route(
 	body: Ruma<send_state_event::v3::Request>,
 ) -> Result<RumaResponse<send_state_event::v3::Response>> {
 	send_state_event_for_key_route(State(services), body)
+		.boxed()
 		.await
 		.map(RumaResponse)
 }
@@ -73,10 +75,7 @@ pub(crate) async fn get_state_events_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_state_events::v3::Request>,
 ) -> Result<get_state_events::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	if !services
 		.rooms
@@ -92,7 +91,7 @@ pub(crate) async fn get_state_events_route(
 			.rooms
 			.state_accessor
 			.room_state_full_pdus(&body.room_id)
-			.map_ok(PduEvent::into_state_event)
+			.map_ok(Event::into_format)
 			.try_collect()
 			.await?,
 	})
@@ -143,7 +142,18 @@ pub(crate) async fn get_state_events_for_key_route(
 
 	Ok(get_state_events_for_key::v3::Response {
 		content: event_format.or(|| event.get_content_as_value()),
-		event: event_format.then(|| event.into_state_event_value()),
+		event: event_format.then(|| {
+			json!({
+				"content": event.content(),
+				"event_id": event.event_id(),
+				"origin_server_ts": event.origin_server_ts(),
+				"room_id": event.room_id(),
+				"sender": event.sender(),
+				"state_key": event.state_key(),
+				"type": event.kind(),
+				"unsigned": event.unsigned(),
+			})
+		}),
 	})
 }
 
@@ -218,7 +228,7 @@ async fn allowed_to_send_state_event(
 						return Err!(Request(BadJson(debug_warn!(
 							?room_id,
 							"Sending an ACL event with an empty allow key will permanently \
-							 brick the room for non-conduwuit's as this equates to no servers \
+							 brick the room for non-tuwunel's as this equates to no servers \
 							 being allowed to participate in this room."
 						))));
 					}
@@ -227,8 +237,8 @@ async fn allowed_to_send_state_event(
 						return Err!(Request(BadJson(debug_warn!(
 							?room_id,
 							"Sending an ACL event with a deny and allow key value of \"*\" will \
-							 permanently brick the room for non-conduwuit's as this equates to \
-							 no servers being allowed to participate in this room."
+							 permanently brick the room for non-tuwunel's as this equates to no \
+							 servers being allowed to participate in this room."
 						))));
 					}
 

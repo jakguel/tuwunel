@@ -16,17 +16,35 @@ use super::Service;
 
 #[derive(Serialize, Default)]
 pub struct UrlPreviewData {
-	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:title"))]
+	#[serde(
+		skip_serializing_if = "Option::is_none",
+		rename(serialize = "og:title")
+	)]
 	pub title: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:description"))]
+	#[serde(
+		skip_serializing_if = "Option::is_none",
+		rename(serialize = "og:description")
+	)]
 	pub description: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image"))]
+	#[serde(
+		skip_serializing_if = "Option::is_none",
+		rename(serialize = "og:image")
+	)]
 	pub image: Option<String>,
-	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "matrix:image:size"))]
+	#[serde(
+		skip_serializing_if = "Option::is_none",
+		rename(serialize = "matrix:image:size")
+	)]
 	pub image_size: Option<usize>,
-	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image:width"))]
+	#[serde(
+		skip_serializing_if = "Option::is_none",
+		rename(serialize = "og:image:width")
+	)]
 	pub image_width: Option<u32>,
-	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image:height"))]
+	#[serde(
+		skip_serializing_if = "Option::is_none",
+		rename(serialize = "og:image:height")
+	)]
 	pub image_height: Option<u32>,
 }
 

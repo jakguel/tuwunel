@@ -1,4 +1,8 @@
-#![allow(clippy::cast_possible_wrap, clippy::cast_sign_loss, clippy::as_conversions)]
+#![allow(
+	clippy::cast_possible_wrap,
+	clippy::cast_sign_loss,
+	clippy::as_conversions
+)]
 
 use std::{cmp::Ordering, fmt, fmt::Display, str::FromStr};
 

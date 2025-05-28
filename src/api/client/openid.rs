@@ -1,11 +1,8 @@
 use std::time::Duration;
 
 use axum::extract::State;
-use ruma::{
-	api::client::{account, error::ErrorKind},
-	authentication::TokenType,
-};
-use tuwunel_core::{Error, Result, utils};
+use ruma::{api::client::account, authentication::TokenType};
+use tuwunel_core::{Err, Result, utils};
 
 use super::TOKEN_LENGTH;
 use crate::Ruma;
@@ -19,20 +16,15 @@ pub(crate) async fn create_openid_token_route(
 	State(services): State<crate::State>,
 	body: Ruma<account::request_openid_token::v3::Request>,
 ) -> Result<account::request_openid_token::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
-	if sender_user != &body.user_id {
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
+	if sender_user != body.user_id {
+		return Err!(Request(InvalidParam(
 			"Not allowed to request OpenID tokens on behalf of other users",
-		));
+		)));
 	}
 
 	let access_token = utils::random_string(TOKEN_LENGTH);
-
 	let expires_in = services
 		.users
 		.create_openid_token(&body.user_id, &access_token)?;

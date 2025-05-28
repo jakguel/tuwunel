@@ -1,0 +1,90 @@
+name: Package
+
+on:
+  workflow_call:
+    inputs:
+      cargo_profiles:
+        type: string
+        default: '["release"]'
+        description: Cargo profiles
+      feat_sets:
+        type: string
+        description: Cargo feature groups
+      rust_toolchains:
+        type: string
+        description: Rust toolchains
+      sys_names:
+        type: string
+        description: System names
+      sys_versions:
+        type: string
+        description: System versions
+      rust_targets:
+        type: string
+        description: Rust targets
+      sys_targets:
+        type: string
+        description: System targets
+      machines:
+        type: string
+        description: Hardware platform vector
+      excludes:
+        type: string
+        default: '[]'
+        description: Matrix exclusions
+      includes:
+        type: string
+        default: '[]'
+        description: Matrix inclusions
+
+jobs:
+  deb:
+    if: ${{ !failure() && !cancelled() && contains(fromJSON(inputs.feat_sets), fromJSON('["all"]')[0]) && contains(fromJSON(inputs.cargo_profiles), fromJSON('["release"]')[0]) && contains(fromJSON(inputs.rust_toolchains), fromJSON('["stable"]')[0]) }}
+    name: Deb
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["pkg-deb"]'
+      cargo_profiles: '["release"]'
+      feat_sets: '["all"]'
+      rust_toolchains: '["stable"]'
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: ${{inputs.excludes}}
+      includes: ${{inputs.includes}}
+
+  rpm:
+    if: ${{ !failure() && !cancelled() && contains(fromJSON(inputs.feat_sets), fromJSON('["all"]')[0]) && contains(fromJSON(inputs.cargo_profiles), fromJSON('["release"]')[0]) && contains(fromJSON(inputs.rust_toolchains), fromJSON('["stable"]')[0]) }}
+    name: RPM
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["pkg-rpm"]'
+      cargo_profiles: '["release"]'
+      feat_sets: '["all"]'
+      rust_toolchains: '["stable"]'
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: ${{inputs.excludes}}
+      includes: ${{inputs.includes}}
+
+  static:
+    if: ${{ !failure() && !cancelled() && contains(fromJSON(inputs.feat_sets), fromJSON('["all"]')[0]) }}
+    name: Standalone
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["standalone"]'
+      cargo_profiles: ${{inputs.cargo_profiles}}
+      feat_sets: '["all"]'
+      rust_toolchains: ${{inputs.rust_toolchains}}
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: ${{inputs.excludes}}
+      includes: ${{inputs.includes}}

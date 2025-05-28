@@ -181,7 +181,11 @@ fn base(config: &Config) -> Result<reqwest::ClientBuilder> {
 	}
 }
 
-#[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
+#[cfg(any(
+	target_os = "android",
+	target_os = "fuchsia",
+	target_os = "linux"
+))]
 fn builder_interface(
 	builder: reqwest::ClientBuilder,
 	config: Option<&str>,
@@ -193,7 +197,11 @@ fn builder_interface(
 	}
 }
 
-#[cfg(not(any(target_os = "android", target_os = "fuchsia", target_os = "linux")))]
+#[cfg(not(any(
+	target_os = "android",
+	target_os = "fuchsia",
+	target_os = "linux"
+)))]
 fn builder_interface(
 	builder: reqwest::ClientBuilder,
 	config: Option<&str>,

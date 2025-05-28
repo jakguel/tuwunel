@@ -96,7 +96,7 @@ impl Console {
 		debug!("session starting");
 
 		self.output
-			.print_inline(&format!("**conduwuit {}** admin console\n", tuwunel_core::version()));
+			.print_inline(&format!("**tuwunel {}** admin console\n", tuwunel_core::version()));
 		self.output
 			.print_text("\"help\" for help, ^D to exit the console, ^\\ to stop the server\n");
 

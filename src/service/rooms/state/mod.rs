@@ -13,7 +13,7 @@ use ruma::{
 	serde::Raw,
 };
 use tuwunel_core::{
-	PduEvent, Result, err,
+	Event, PduEvent, Result, err,
 	result::FlatOk,
 	state_res::{self, StateMap},
 	utils::{
@@ -337,30 +337,34 @@ impl Service {
 	}
 
 	#[tracing::instrument(skip_all, level = "debug")]
-	pub async fn summary_stripped(&self, event: &PduEvent) -> Vec<Raw<AnyStrippedStateEvent>> {
+	pub async fn summary_stripped<'a, E>(&self, event: &'a E) -> Vec<Raw<AnyStrippedStateEvent>>
+	where
+		E: Event + Send + Sync,
+		&'a E: Event + Send,
+	{
 		let cells = [
 			(&StateEventType::RoomCreate, ""),
 			(&StateEventType::RoomJoinRules, ""),
 			(&StateEventType::RoomCanonicalAlias, ""),
 			(&StateEventType::RoomName, ""),
 			(&StateEventType::RoomAvatar, ""),
-			(&StateEventType::RoomMember, event.sender.as_str()), // Add recommended events
+			(&StateEventType::RoomMember, event.sender().as_str()), // Add recommended events
 			(&StateEventType::RoomEncryption, ""),
 			(&StateEventType::RoomTopic, ""),
 		];
 
-		let fetches = cells.iter().map(|(event_type, state_key)| {
+		let fetches = cells.into_iter().map(|(event_type, state_key)| {
 			self.services
 				.state_accessor
-				.room_state_get(&event.room_id, event_type, state_key)
+				.room_state_get(event.room_id(), event_type, state_key)
 		});
 
 		join_all(fetches)
 			.await
 			.into_iter()
 			.filter_map(Result::ok)
-			.map(PduEvent::into_stripped_state_event)
-			.chain(once(event.to_stripped_state_event()))
+			.map(Event::into_format)
+			.chain(once(event.to_format()))
 			.collect()
 	}
 
@@ -370,8 +374,8 @@ impl Service {
 		&self,
 		room_id: &RoomId,
 		shortstatehash: u64,
-		_mutex_lock: &RoomMutexGuard, /* Take mutex guard to make sure users get the room
-		                               * state mutex */
+		// Take mutex guard to make sure users get the room state mutex
+		_mutex_lock: &RoomMutexGuard,
 	) {
 		const BUFSIZE: usize = size_of::<u64>();
 

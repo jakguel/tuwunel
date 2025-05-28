@@ -1,0 +1,128 @@
+name: Main
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{github.workflow}}-${{github.ref}}
+  cancel-in-progress: true
+
+env:
+  inputs: ${{github.event.inputs}}
+
+jobs:
+  init:
+    name: Init
+    runs-on: self-hosted
+    outputs:
+      cargo_profiles: ${{vars.CARGO_PROFILES || env.default_cargo_profiles}}
+      feat_sets: ${{vars.FEAT_SETS || env.default_feat_sets}}
+      rust_toolchains: ${{vars.RUST_TOOLCHAINS || env.default_rust_toolchains}}
+      rust_targets: ${{vars.RUST_TARGETS || env.default_rust_targets}}
+      sys_names: ${{vars.SYS_NAMES || env.default_sys_names}}
+      sys_targets: ${{vars.SYS_TARGETS || env.default_sys_targets}}
+      sys_versions: ${{vars.SYS_VERSIONS || env.default_sys_versions}}
+      machines: ${{vars.MACHINES || env.default_machines}}
+    env:
+      default_cargo_profiles: '["test", "release"]'
+      default_feat_sets: '["none", "default", "all"]'
+      default_rust_toolchains: '["nightly", "stable"]'
+      default_sys_names: '["debian"]'
+      default_sys_versions: '["testing-slim"]'
+      default_rust_targets: '["x86_64-unknown-linux-gnu"]'
+      default_sys_targets: '["x86_64-linux-gnu"]'
+      default_machines: '["x86_64"]'
+    steps:
+    - run: true
+
+  deps:
+    if: ${{fromJSON(vars.CI_VERBOSE_DEPS || 'false')}}
+    name: Deps
+    needs: [init]
+    uses: ./.github/workflows/deps.yml
+    with:
+      cargo_profiles: ${{needs.init.outputs.cargo_profiles}}
+      feat_sets: ${{needs.init.outputs.feat_sets}}
+      rust_toolchains: ${{needs.init.outputs.rust_toolchains}}
+      rust_targets: ${{needs.init.outputs.rust_targets}}
+      sys_names: ${{needs.init.outputs.sys_names}}
+      sys_targets: ${{needs.init.outputs.sys_targets}}
+      sys_versions: ${{needs.init.outputs.sys_versions}}
+      machines: ${{needs.init.outputs.machines}}
+      excludes: '[{"cargo_profile": "release-debuginfo", "rust_toolchain": "nightly"}, {"cargo_profile": "release-max-perf", "rust_toolchain": "stable"}, {"cargo_profile": "release-max-perf", "feat_set": "none"}]'
+
+  lint:
+    if: ${{ !failure() && !cancelled() }}
+    name: Lint
+    needs: [init, deps]
+    uses: ./.github/workflows/lint.yml
+    with:
+      cargo_profiles: ${{needs.init.outputs.cargo_profiles}}
+      feat_sets: ${{needs.init.outputs.feat_sets}}
+      rust_toolchains: ${{needs.init.outputs.rust_toolchains}}
+      rust_targets: ${{needs.init.outputs.rust_targets}}
+      sys_names: ${{needs.init.outputs.sys_names}}
+      sys_targets: ${{needs.init.outputs.sys_targets}}
+      sys_versions: ${{needs.init.outputs.sys_versions}}
+      machines: ${{needs.init.outputs.machines}}
+      excludes: '[{"cargo_profile": "release-debuginfo", "rust_toolchain": "nightly"}, {"cargo_profile": "release-max-perf", "rust_toolchain": "stable"}, {"cargo_profile": "release-max-perf", "feat_set": "none"}]'
+
+  test:
+    if: ${{ !failure() && !cancelled() }}
+    name: Test
+    needs: [init, lint]
+    uses: ./.github/workflows/test.yml
+    with:
+      cargo_profiles: ${{needs.init.outputs.cargo_profiles}}
+      feat_sets: ${{needs.init.outputs.feat_sets}}
+      rust_toolchains: ${{needs.init.outputs.rust_toolchains}}
+      rust_targets: ${{needs.init.outputs.rust_targets}}
+      sys_names: ${{needs.init.outputs.sys_names}}
+      sys_targets: ${{needs.init.outputs.sys_targets}}
+      sys_versions: ${{needs.init.outputs.sys_versions}}
+      machines: ${{needs.init.outputs.machines}}
+      complement: ${{fromJSON(vars.COMPLEMENT || 'true')}}
+      excludes: '[{"cargo_profile": "release-debuginfo", "rust_toolchain": "nightly"}, {"cargo_profile": "release-max-perf", "rust_toolchain": "stable"}, {"cargo_profile": "release-max-perf", "feat_set": "none"}]'
+
+  package:
+    if: ${{ !failure() && !cancelled() }}
+    name: Package
+    needs: [init, lint]
+    uses: ./.github/workflows/package.yml
+    with:
+      cargo_profiles: ${{needs.init.outputs.cargo_profiles}}
+      feat_sets: ${{needs.init.outputs.feat_sets}}
+      rust_toolchains: ${{needs.init.outputs.rust_toolchains}}
+      rust_targets: ${{needs.init.outputs.rust_targets}}
+      sys_names: ${{needs.init.outputs.sys_names}}
+      sys_targets: ${{needs.init.outputs.sys_targets}}
+      sys_versions: ${{needs.init.outputs.sys_versions}}
+      machines: ${{needs.init.outputs.machines}}
+      excludes: '[{"cargo_profile": "test"}, {"feat_set": "none"}, {"cargo_profile": "release-max-perf", "rust_toolchain": "stable"}]'
+
+  publish:
+    if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/main' }}
+    name: Publish
+    needs: [init, test, package]
+    uses: ./.github/workflows/publish.yml
+    with:
+      cargo_profiles: ${{needs.init.outputs.cargo_profiles}}
+      feat_sets: ${{needs.init.outputs.feat_sets}}
+      rust_toolchains: ${{needs.init.outputs.rust_toolchains}}
+      rust_targets: ${{needs.init.outputs.rust_targets}}
+      sys_names: ${{needs.init.outputs.sys_names}}
+      sys_targets: ${{needs.init.outputs.sys_targets}}
+      sys_versions: ${{needs.init.outputs.sys_versions}}
+      machines: ${{needs.init.outputs.machines}}
+      excludes: '[{"cargo_profile": "test"}, {"feat_set": "none"}, {"rust_toolchain": "nightly", "cargo_profile": "release"}, {"cargo_profile": "release-max-perf"}]'
+      docker_repo: ${{vars.DOCKER_REPO}}
+
+    secrets:
+      ghcr_token: ${{ secrets.GHCR_TOKEN }}
+      dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}

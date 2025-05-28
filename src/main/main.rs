@@ -74,7 +74,7 @@ async fn async_main(server: &Arc<Server>) -> Result<(), Error> {
 			.lock()
 			.await
 			.take()
-			.expect("services initialied"),
+			.expect("services initialized"),
 	)
 	.await
 	{

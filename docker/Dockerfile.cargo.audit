@@ -1,0 +1,25 @@
+# syntax = docker/dockerfile:1.11-labs
+
+FROM input AS audit
+ARG sys_target
+ARG rust_toolchain="nightly"
+ARG RUSTUP_HOME
+ARG CARGO_HOME
+ARG audit_args=""
+
+WORKDIR /usr/src/tuwunel
+RUN \
+--mount=type=cache,dst=${RUSTUP_HOME},sharing=locked \
+--mount=type=cache,dst=${CARGO_HOME},sharing=locked \
+<<EOF
+    set -eux
+    rustup run ${rust_toolchain} \
+        cargo audit \
+            --stale \
+            --deny yanked \
+            --deny unsound \
+            --deny unmaintained \
+            --deny warnings \
+            --color=always \
+            ${audit_args}
+EOF

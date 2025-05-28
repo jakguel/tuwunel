@@ -22,9 +22,12 @@ COPY <<EOF v3.ext
     keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
     subjectAltName = @alt_names
     [alt_names]
+    DNS.0 = *.docker.internal
     DNS.1 = hs1
     DNS.2 = hs2
     DNS.3 = hs3
+    DNS.4 = hs4
+    IP.1 = 127.0.0.1
 EOF
 RUN <<EOF
     set -eux
@@ -38,7 +41,7 @@ RUN <<EOF
         -sha256 \
         -key private_key.pem \
         -subj "/C=US/ST=CA/O=MyOrg, Inc./CN=hs1" \
-        -addext "subjectAltName = DNS:hs1, DNS:hs2, DNS:hs3" \
+        -addext "subjectAltName = DNS:*.docker.internal DNS:hs1, DNS:hs2, DNS:hs3, DNS:hs4, IP:127.0.0.1" \
         -out signing_request.csr
 
     openssl x509 \
@@ -56,7 +59,7 @@ RUN [ -f certificate.crt ] && [ -f private_key.pem ]
 FROM scratch AS complement-config
 WORKDIR /complement
 COPY --from=key-gen /complement/* .
-COPY --from=source /usr/src/conduwuit/tests/test_results/complement/test_results.jsonl old_results.jsonl
+COPY --from=source /usr/src/tuwunel/tests/test_results/complement/test_results.jsonl old_results.jsonl
 COPY <<EOF complement.toml
     [global]
     address = "0.0.0.0"
@@ -66,7 +69,7 @@ COPY <<EOF complement.toml
     allow_public_room_directory_without_auth = true
     allow_registration = true
     database_path = "/database"
-    log = "debug,conduwuit=trace,h2=warn,hyper=warn"
+    log = "debug,tuwunel=trace,h2=warn,hyper=warn"
     port = [8008, 8448]
     trusted_servers = []
     only_query_trusted_key_servers = false
@@ -102,7 +105,7 @@ COPY <<EOF complement.toml
     sender_timeout = 300
     sender_idle_timeout = 300
     sender_retry_backoff_limit = 300
-    allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure = true
+    allow_invalid_tls_certificates = true
 
     [global.tls]
     certs = "/complement/certificate.crt"
@@ -116,8 +119,8 @@ FROM input AS complement-testee
 EXPOSE 8008 8448
 RUN mkdir /database
 COPY --from=complement-config * /complement/
-ENV CONDUWUIT_CONFIG="/complement/complement.toml"
-ENTRYPOINT conduwuit -Oserver_name=\""$SERVER_NAME\""
+ENV TUWUNEL_CONFIG="/complement/complement.toml"
+ENTRYPOINT tuwunel -Oserver_name=\""$SERVER_NAME\""
 
 
 FROM input AS complement-testee-valgrind
@@ -125,20 +128,20 @@ FROM input AS complement-testee-valgrind
 EXPOSE 8008 8448
 RUN mkdir /database
 COPY --from=complement-config * /complement/
-ENV CONDUWUIT_CONFIG="/complement/complement.toml"
+ENV TUWUNEL_CONFIG="/complement/complement.toml"
 ENTRYPOINT valgrind \
     --leak-check=no \
     --undef-value-errors=no \
     --exit-on-first-error=yes \
     --error-exitcode=1 \
-    conduwuit \
+    tuwunel \
         -Oserver_name=\""$SERVER_NAME\""
 
 
 FROM input AS complement-base
 ARG var_cache
 ARG var_lib_apt
-ARG complement_tags="conduwuit_blacklist"
+ARG complement_tags="tuwunel_blacklist"
 ARG complement_tests="./tests/..."
 ARG complement_run=".*"
 
@@ -153,7 +156,7 @@ RUN \
 EOF
 
 WORKDIR /usr/src
-ADD https://github.com/girlbossceo/complement.git complement
+ADD https://github.com/matrix-construct/complement.git complement
 
 WORKDIR /usr/src/complement
 ENV COMPLEMENT_BASE_IMAGE="complement-testee"
@@ -167,6 +170,7 @@ EOF
 
 
 FROM input AS complement-tester
+ARG complement_verbose=0
 ARG complement_debug=0
 ARG complement_count=1
 ARG complement_parallel=16
@@ -188,11 +192,12 @@ ENV complement_tests="$complement_tests"
 ENV complement_skip="$complement_skip"
 ENV complement_run="$complement_run"
 ENV complement_tests="$complement_tests"
+ENV COMPLEMENT_ALWAYS_PRINT_SERVER_LOGS="$complement_verbose"
 ENV COMPLEMENT_HOSTNAME_RUNNING_COMPLEMENT="host.docker.internal"
 ENV COMPLEMENT_HOST_MOUNTS="/var/run/docker.sock:/var/run/docker.sock"
 ENV jq_res='{Action: .Action, Test: .Test}'
 ENV jq_sel='select((.Action == \"pass\" or .Action == \"fail\" or .Action == \"skip\") and .Test != null)'
-ENV jq_tab='([\"RESULT\",\"TEST\"] | (., map(length*\"-\"))), (.[] | [.Action, .Test]) | @tsv'
+ENV jq_tab='[.Action, .Test] | @tsv'
 WORKDIR /usr/src/complement
 COPY --from=complement-config /complement/old_results.jsonl .
 COPY <<EOF uwu.sh
@@ -210,15 +215,13 @@ COPY <<EOF uwu.sh
         -skip="${complement_skip}"
         -run="${complement_run}"
         "${complement_tests}"
-    | jq -c "${jq_sel} | ${jq_res}"
+    | jq --unbuffered -c "${jq_sel} | ${jq_res}"
     | tee results.jsonl
-    | jq -s -r "${jq_tab}"
+    | jq --unbuffered -r "${jq_tab}"
     ;
 
     jq -s -c "sort_by(.Test)[]" < results.jsonl | uniq > new_results.jsonl;
-
     wc -l old_results.jsonl new_results.jsonl;
-
     diff -w -y -t --width=275 --suppress-common-lines old_results.jsonl new_results.jsonl;
 EOF
 RUN echo $(tr -d '\n' < uwu.sh) > uwu.sh

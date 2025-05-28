@@ -21,7 +21,7 @@ pub struct Manager {
 }
 
 thread_local! {
-	static INDEX: Cell<usize> = 0.into();
+	static INDEX: Cell<usize> = const { Cell::new(0_usize) };
 	static HANDLE: RefCell<Handles> = const {
 		RefCell::new([const { None }; HISTORY])
 	};

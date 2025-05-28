@@ -49,6 +49,9 @@ jemalloc_stats = [
 	"tuwunel-core/jemalloc_stats",
 	"tuwunel-service/jemalloc_stats",
 ]
+ldap = [
+	"tuwunel-service/ldap",
+]
 release_max_log_level = [
 	"tuwunel-core/release_max_log_level",
 	"tuwunel-service/release_max_log_level",

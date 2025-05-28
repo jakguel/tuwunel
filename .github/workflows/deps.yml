@@ -1,0 +1,143 @@
+name: Dependencies
+
+on:
+  workflow_call:
+    inputs:
+      cargo_profiles:
+        type: string
+        description: Cargo profiles
+      feat_sets:
+        type: string
+        description: Cargo feature groups
+      rust_toolchains:
+        type: string
+        description: Rust toolchains
+      sys_names:
+        type: string
+        description: System names
+      sys_versions:
+        type: string
+        description: System versions
+      rust_targets:
+        type: string
+        description: Rust targets
+      sys_targets:
+        type: string
+        description: System targets
+      machines:
+        type: string
+        description: Hardware platform vector
+      excludes:
+        type: string
+        default: '[]'
+        description: Matrix exclusions
+      includes:
+        type: string
+        default: '[]'
+        description: Matrix inclusions
+      show_systems:
+        type: boolean
+        default: true
+        description: Pre-build systems dependency targets
+      show_sources:
+        type: boolean
+        default: true
+        description: Pre-build sources dependency targets
+      show_rocksdb:
+        type: boolean
+        default: true
+        description: Pre-build rocksdb dependency targets
+      show_cargo:
+        type: boolean
+        default: true
+        description: Pre-build cargo dependency targets
+
+jobs:
+  systems:
+    if: ${{ !failure() && !cancelled() && inputs.show_systems }}
+    name: System
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["systems"]'
+      cargo_profiles: ${{inputs.cargo_profiles}}
+      feat_sets: ${{inputs.feat_sets}}
+      rust_toolchains: ${{inputs.rust_toolchains}}
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: ${{inputs.excludes}}
+      includes: ${{inputs.includes}}
+
+  buildsys:
+    if: ${{ !failure() && !cancelled() && inputs.show_systems }}
+    name: Builder
+    needs: [systems]
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["buildsys"]'
+      cargo_profiles: ${{inputs.cargo_profiles}}
+      feat_sets: ${{inputs.feat_sets}}
+      rust_toolchains: ${{inputs.rust_toolchains}}
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: ${{inputs.excludes}}
+      includes: ${{inputs.includes}}
+
+  sources:
+    if: ${{ !failure() && !cancelled() && inputs.show_sources }}
+    name: Acquire
+    needs: [buildsys]
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["sources"]'
+      cargo_profiles: ${{inputs.cargo_profiles}}
+      feat_sets: ${{inputs.feat_sets}}
+      rust_toolchains: ${{inputs.rust_toolchains}}
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: ${{inputs.excludes}}
+      includes: ${{inputs.includes}}
+
+  rocksdb:
+    if: ${{ !failure() && !cancelled() && inputs.show_rocksdb }}
+    name: RocksDB
+    needs: [sources]
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["rocksdb"]'
+      cargo_profiles: ${{inputs.cargo_profiles}}
+      feat_sets: ${{inputs.feat_sets}}
+      rust_toolchains: ${{inputs.rust_toolchains}}
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: ${{inputs.excludes}}
+      includes: ${{inputs.includes}}
+
+  deps:
+    if: ${{ !failure() && !cancelled() && inputs.show_cargo }}
+    name: Build
+    needs: [rocksdb]
+    uses: ./.github/workflows/bake.yml
+    with:
+      bake_targets: '["deps-clippy", "deps-build-tests", "deps-build-bins"]'
+      cargo_profiles: ${{inputs.cargo_profiles}}
+      feat_sets: ${{inputs.feat_sets}}
+      rust_toolchains: ${{inputs.rust_toolchains}}
+      sys_names: ${{inputs.sys_names}}
+      sys_versions: ${{inputs.sys_versions}}
+      rust_targets: ${{inputs.rust_targets}}
+      sys_targets: ${{inputs.sys_targets}}
+      machines: ${{inputs.machines}}
+      excludes: ${{inputs.excludes}}
+      includes: ${{inputs.includes}}

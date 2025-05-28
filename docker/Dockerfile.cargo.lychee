@@ -1,0 +1,29 @@
+# syntax = docker/dockerfile:1.11-labs
+
+FROM input AS lychee
+ARG sys_target
+ARG rust_toolchain="nightly"
+ARG RUSTUP_HOME
+ARG CARGO_HOME
+ARG lychee_cache_age="7d"
+ARG lychee_mode="color"
+ARG lychee_args="docs *.md"
+
+WORKDIR /usr/src/tuwunel
+RUN \
+--mount=type=cache,dst=${RUSTUP_HOME},sharing=locked \
+--mount=type=cache,dst=${CARGO_HOME},sharing=locked \
+<<EOF
+    set -eux
+    rustup run ${rust_toolchain} \
+        lychee \
+            --verbose \
+            --cache \
+            --offline \
+            --max-cache-age ${lychee_cache_age} \
+            --mode ${lychee_mode} \
+            --exclude development.md \
+            --exclude contributing.md \
+            --exclude testing.md \
+            ${lychee_args}
+EOF

@@ -5,17 +5,12 @@ use axum_client_ip::InsecureClientIp;
 use rand::Rng;
 use ruma::{
 	EventId, RoomId, UserId,
-	api::client::{
-		error::ErrorKind,
-		room::{report_content, report_room},
-	},
+	api::client::room::{report_content, report_room},
 	events::room::message,
 	int,
 };
 use tokio::time::sleep;
-use tuwunel_core::{
-	Err, Error, Result, debug_info, info, matrix::pdu::PduEvent, utils::ReadyExt,
-};
+use tuwunel_core::{Err, Result, debug_info, info, matrix::pdu::PduEvent, utils::ReadyExt};
 use tuwunel_service::Services;
 
 use crate::Ruma;
@@ -30,10 +25,7 @@ pub(crate) async fn report_room_route(
 	body: Ruma<report_room::v3::Request>,
 ) -> Result<report_room::v3::Response> {
 	// user authentication
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	info!(
 		"Received room report by user {sender_user} for room {} with reason: \"{}\"",
@@ -46,9 +38,8 @@ pub(crate) async fn report_room_route(
 		.as_ref()
 		.is_some_and(|s| s.len() > 750)
 	{
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
-			"Reason too long, should be 750 characters or fewer",
+		return Err!(Request(
+			InvalidParam("Reason too long, should be 750 characters or fewer",)
 		));
 	}
 
@@ -91,10 +82,7 @@ pub(crate) async fn report_event_route(
 	body: Ruma<report_content::v3::Request>,
 ) -> Result<report_content::v3::Response> {
 	// user authentication
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	info!(
 		"Received event report by user {sender_user} for room {} and event ID {}, with reason: \
@@ -168,23 +156,16 @@ async fn is_event_report_valid(
 	);
 
 	if room_id != pdu.room_id {
-		return Err(Error::BadRequest(
-			ErrorKind::NotFound,
-			"Event ID does not belong to the reported room",
-		));
+		return Err!(Request(NotFound("Event ID does not belong to the reported room",)));
 	}
 
 	if score.is_some_and(|s| s > int!(0) || s < int!(-100)) {
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
-			"Invalid score, must be within 0 to -100",
-		));
+		return Err!(Request(InvalidParam("Invalid score, must be within 0 to -100",)));
 	}
 
 	if reason.as_ref().is_some_and(|s| s.len() > 750) {
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
-			"Reason too long, should be 750 characters or fewer",
+		return Err!(Request(
+			InvalidParam("Reason too long, should be 750 characters or fewer",)
 		));
 	}
 
@@ -195,10 +176,7 @@ async fn is_event_report_valid(
 		.ready_any(|user_id| user_id == sender_user)
 		.await
 	{
-		return Err(Error::BadRequest(
-			ErrorKind::NotFound,
-			"You are not in the room you are reporting.",
-		));
+		return Err!(Request(NotFound("You are not in the room you are reporting.",)));
 	}
 
 	Ok(())
@@ -213,5 +191,6 @@ async fn delay_response() {
 		"Got successful /report request, waiting {time_to_wait} seconds before sending \
 		 successful response."
 	);
+
 	sleep(Duration::from_secs(time_to_wait)).await;
 }

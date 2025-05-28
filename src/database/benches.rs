@@ -4,7 +4,7 @@ extern crate test;
 #[cfg(tuwunel_bench)]
 #[cfg_attr(tuwunel_bench, bench)]
 fn ser_str(b: &mut test::Bencher) {
-	use tuwunel::ruma::{RoomId, UserId};
+	use tuwunel_core::ruma::{RoomId, UserId};
 
 	use crate::ser::serialize_to_vec;
 

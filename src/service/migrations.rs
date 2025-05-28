@@ -150,7 +150,7 @@ async fn migrate(services: &Services) -> Result<()> {
 	assert_eq!(
 		services.globals.db.database_version().await,
 		DATABASE_VERSION,
-		"Failed asserting local database version {} is equal to known latest conduwuit database \
+		"Failed asserting local database version {} is equal to known latest tuwunel database \
 		 version {}",
 		services.globals.db.database_version().await,
 		DATABASE_VERSION,
@@ -253,12 +253,14 @@ async fn db_lt_12(services: &Services) -> Result<()> {
 			let rule = rules_list
 				.content
 				.get(content_rule_transformation[0]);
-			if rule.is_some() {
-				let mut rule = rule.unwrap().clone();
+
+			if let Some(rule) = rule {
+				let mut rule = rule.clone();
 				content_rule_transformation[1].clone_into(&mut rule.rule_id);
 				rules_list
 					.content
 					.shift_remove(content_rule_transformation[0]);
+
 				rules_list.content.insert(rule);
 			}
 		}

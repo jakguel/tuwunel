@@ -39,7 +39,7 @@ use ruma::{
 };
 use serde_json::value::{RawValue as RawJsonValue, to_raw_value};
 use tuwunel_core::{
-	Error, Result, debug, err, error,
+	Error, Event, Result, debug, err, error,
 	result::LogErr,
 	trace,
 	utils::{
@@ -521,7 +521,11 @@ impl Service {
 	}
 
 	/// Look for read receipts in this room
-	#[tracing::instrument(name = "receipts", level = "trace", skip(self, since, max_edu_count))]
+	#[tracing::instrument(
+		name = "receipts",
+		level = "trace",
+		skip(self, since, max_edu_count)
+	)]
 	async fn select_edus_receipts_room(
 		&self,
 		room_id: &RoomId,
@@ -729,7 +733,7 @@ impl Service {
 						.get_pdu_from_id(pdu_id)
 						.await
 					{
-						pdu_jsons.push(pdu.into_room_event());
+						pdu_jsons.push(pdu.to_format());
 					}
 				},
 				| SendingEvent::Edu(edu) => {
@@ -841,7 +845,7 @@ impl Service {
 			let unread: UInt = self
 				.services
 				.user
-				.notification_count(&user_id, &pdu.room_id)
+				.notification_count(&user_id, pdu.room_id())
 				.await
 				.try_into()
 				.expect("notification count can't go that high");

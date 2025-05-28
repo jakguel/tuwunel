@@ -4,9 +4,9 @@ Information about developing the project. If you are only interested in using
 it, you can safely ignore this page. If you plan on contributing, see the
 [contributor's guide](./contributing.md).
 
-## conduwuit project layout
+## Tuwunel project layout
 
-conduwuit uses a collection of sub-crates, packages, or workspace members
+Tuwunel uses a collection of sub-crates, packages, or workspace members
 that indicate what each general area of code is for. All of the workspace
 members are under `src/`. The workspace definition is at the top level / root
 `Cargo.toml`.
@@ -14,11 +14,11 @@ members are under `src/`. The workspace definition is at the top level / root
 The crate names are generally self-explanatory:
 - `admin` is the admin room
 - `api` is the HTTP API, Matrix C-S and S-S endpoints, etc
-- `core` is core conduwuit functionality like config loading, error definitions,
+- `core` is core Tuwunel functionality like config loading, error definitions,
 global utilities, logging infrastructure, etc
 - `database` is RocksDB methods, helpers, RocksDB config, and general database definitions,
 utilities, or functions
-- `macros` are conduwuit Rust [macros][macros] like general helper macros, logging
+- `macros` are Tuwunel Rust [macros][macros] like general helper macros, logging
 and error handling macros, and [syn][syn] and [procedural macros][proc-macro]
 used for admin room commands and others
 - `main` is the "primary" sub-crate. This is where the `main()` function lives,
@@ -35,7 +35,7 @@ if you truly find yourself needing to, we recommend reaching out to us in
 the Matrix room for discussions about it beforehand.
 
 The primary inspiration for this design was apart of hot reloadable development,
-to support "conduwuit as a library" where specific parts can simply be swapped out.
+to support "Tuwunel as a library" where specific parts can simply be swapped out.
 There is evidence Conduit wanted to go this route too as `axum` is technically an
 optional feature in Conduit, and can be compiled without the binary or axum library
 for handling inbound web requests; but it was never completed or worked.
@@ -52,7 +52,7 @@ the said workspace crate(s) must define the feature there in its `Cargo.toml`.
 
 So, if this is adding a feature to the API such as `woof`, you define the feature
 in the `api` crate's `Cargo.toml` as `woof = []`. The feature definition in `main`'s
-`Cargo.toml` will be `woof = ["conduwuit-api/woof"]`.
+`Cargo.toml` will be `woof = ["tuwunel-api/woof"]`.
 
 The rationale for this is due to Rust / Cargo not supporting
 ["workspace level features"][9], we must make a choice of; either scattering
@@ -68,36 +68,36 @@ do this if Rust supported workspace-level features to begin with.
 
 ## List of forked dependencies
 
-During conduwuit development, we have had to fork
+During Tuwunel development, we have had to fork
 some dependencies to support our use-cases in some areas. This ranges from
 things said upstream project won't accept for any reason, faster-paced
-development (unresponsive or slow upstream), conduwuit-specific usecases, or
+development (unresponsive or slow upstream), Tuwunel-specific usecases, or
 lack of time to upstream some things.
 
-- [ruma/ruma][1]: <https://github.com/girlbossceo/ruwuma> - various performance
+- [ruma/ruma][1]: <https://github.com/matrix-construct/ruwuma> - various performance
 improvements, more features, faster-paced development, better client/server interop
 hacks upstream won't accept, etc
-- [facebook/rocksdb][2]: <https://github.com/girlbossceo/rocksdb> - liburing
+- [facebook/rocksdb][2]: <https://github.com/matrix-construct/rocksdb> - liburing
 build fixes and GCC debug build fix
-- [tikv/jemallocator][3]: <https://github.com/girlbossceo/jemallocator> - musl
+- [tikv/jemallocator][3]: <https://github.com/matrix-construct/jemallocator> - musl
 builds seem to be broken on upstream, fixes some broken/suspicious code in
 places, additional safety measures, and support redzones for Valgrind
 - [zyansheep/rustyline-async][4]:
-<https://github.com/girlbossceo/rustyline-async> - tab completion callback and
-`CTRL+\` signal quit event for conduwuit console CLI
+<https://github.com/matrix-construct/rustyline-async> - tab completion callback and
+`CTRL+\` signal quit event for Tuwunel console CLI
 - [rust-rocksdb/rust-rocksdb][5]:
-<https://github.com/girlbossceo/rust-rocksdb-zaidoon1> - [`@zaidoon1`][8]'s fork
+<https://github.com/matrix-construct/rust-rocksdb-zaidoon1> - [`@zaidoon1`][8]'s fork
 has quicker updates, more up to date dependencies, etc. Our fork fixes musl build
 issues, removes unnecessary `gtest` include, and uses our RocksDB and jemallocator
 forks.
-- [tokio-rs/tracing][6]: <https://github.com/girlbossceo/tracing> - Implements
+- [tokio-rs/tracing][6]: <https://github.com/matrix-construct/tracing> - Implements
 `Clone` for `EnvFilter` to support dynamically changing tracing envfilter's
 alongside other logging/metrics things
 
 ## Debugging with `tokio-console`
 
 [`tokio-console`][7] can be a useful tool for debugging and profiling. To make a
-`tokio-console`-enabled build of conduwuit, enable the `tokio_console` feature,
+`tokio-console`-enabled build of Tuwunel, enable the `tokio_console` feature,
 disable the default `release_max_log_level` feature, and set the `--cfg
 tokio_unstable` flag to enable experimental tokio APIs. A build might look like
 this:
@@ -109,7 +109,7 @@ RUSTFLAGS="--cfg tokio_unstable" cargo +nightly build \
     --features=systemd,element_hacks,gzip_compression,brotli_compression,zstd_compression,tokio_console
 ```
 
-You will also need to enable the `tokio_console` config option in conduwuit when
+You will also need to enable the `tokio_console` config option in Tuwunel when
 starting it. This was due to tokio-console causing gradual memory leak/usage
 if left enabled.
 

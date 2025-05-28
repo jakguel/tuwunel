@@ -1,0 +1,135 @@
+name: Publish
+
+on:
+  workflow_call:
+    inputs:
+      cargo_profiles:
+        type: string
+        default: '["release"]'
+        description: Cargo profiles
+      feat_sets:
+        type: string
+        description: Cargo feature groups
+      rust_toolchains:
+        type: string
+        description: Rust toolchains
+      sys_names:
+        type: string
+        description: System names
+      sys_versions:
+        type: string
+        description: System versions
+      rust_targets:
+        type: string
+        description: Rust targets
+      sys_targets:
+        type: string
+        description: System targets
+      machines:
+        type: string
+        description: Hardware platform vector
+      excludes:
+        type: string
+        default: '[]'
+        description: Matrix exclusions
+      includes:
+        type: string
+        default: '[]'
+        description: Matrix inclusions
+      docker_repo:
+        type: string
+        description: DockerHub Repository
+    secrets:
+      ghcr_token:
+      dockerhub_token:
+
+jobs:
+  containers:
+    if: ${{ !failure() && !cancelled() && inputs.docker_repo }}
+    name: Publish containers
+    runs-on: ${{matrix.machine}}
+    permissions: write-all
+    continue-on-error: false
+    strategy:
+      fail-fast: true
+      matrix:
+        bake_target: ${{fromJSON('["github", "dockerhub"]')}}
+        cargo_profile: ${{fromJSON(inputs.cargo_profiles)}}
+        rust_toolchain: ${{fromJSON(inputs.rust_toolchains)}}
+        feat_set: ${{fromJSON(inputs.feat_sets)}}
+        sys_name: ${{fromJSON(inputs.sys_names)}}
+        sys_version: ${{fromJSON(inputs.sys_versions)}}
+        rust_target: ${{fromJSON(inputs.rust_targets)}}
+        sys_target: ${{fromJSON(inputs.sys_targets)}}
+        machine: ${{fromJSON(inputs.machines)}}
+        exclude: ${{fromJSON(inputs.excludes)}}
+        include: ${{fromJSON(inputs.includes)}}
+
+    steps:
+      - name: GitHub Login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.ghcr_token }}
+
+      - name: DockerHub Login
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.dockerhub_token }}
+
+      - name: Bake
+        env:
+          bake_target: ${{matrix.bake_target}}
+          cargo_profile: ${{matrix.cargo_profile}}
+          rust_toolchain: ${{matrix.rust_toolchain}}
+          rust_target: ${{matrix.rust_target}}
+          feat_set: ${{matrix.feat_set}}
+          sys_name: ${{matrix.sys_name}}
+          sys_version: ${{matrix.sys_version}}
+          sys_target: ${{matrix.sys_target}}
+          machine: ${{matrix.machine}}
+          acct: ${{github.actor}}
+          repo: ${{github.repository}}
+          docker_repo: ${{inputs.docker_repo}}
+
+        run: |
+          docker/bake.sh "${{matrix.bake_target}}"
+
+  packages:
+    if: ${{ !failure() && !cancelled() && contains(fromJSON(inputs.feat_sets), fromJSON('["all"]')[0]) }}
+    name: Publish packages
+    runs-on: ${{matrix.machine}}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{fromJSON('[["pkg-rpm","tuwunel-1.0.0-1.x86_64.rpm"],["pkg-deb","tuwunel_1.0.0-1_amd64.deb"],["standalone", "tuwunel"]]')}}
+        cargo_profile: ${{fromJSON(inputs.cargo_profiles)}}
+        rust_toolchain: ${{fromJSON(inputs.rust_toolchains)}}
+        feat_set: ${{fromJSON('["all"]')}}
+        sys_name: ${{fromJSON(inputs.sys_names)}}
+        sys_version: ${{fromJSON(inputs.sys_versions)}}
+        rust_target: ${{fromJSON(inputs.rust_targets)}}
+        sys_target: ${{fromJSON(inputs.sys_targets)}}
+        machine: ${{fromJSON(inputs.machines)}}
+        exclude: ${{fromJSON(inputs.excludes)}}
+        include: ${{fromJSON(inputs.includes)}}
+
+    steps:
+      - name: Extract
+        env:
+          iid: ${{matrix.target[0]}}--${{matrix.cargo_profile}}--${{matrix.rust_toolchain}}--${{matrix.rust_target}}--${{matrix.feat_set}}--${{matrix.sys_name}}--${{matrix.sys_version}}--${{matrix.sys_target}}
+          file: ${{matrix.target[1]}}
+
+        run: |
+          cid=$(docker create "$iid" /)
+          docker cp "$cid:$file" .
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{matrix.target[1]}}-${{matrix.cargo_profile}}
+          path: ${{matrix.target[1]}}

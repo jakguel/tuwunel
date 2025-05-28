@@ -4,14 +4,13 @@ mod execute;
 mod grant;
 
 use std::{
-	future::Future,
 	pin::Pin,
 	sync::{Arc, RwLock as StdRwLock, Weak},
 };
 
 use async_trait::async_trait;
 pub use create::create_admin_room;
-use futures::{FutureExt, TryFutureExt};
+use futures::{Future, FutureExt, TryFutureExt};
 use loole::{Receiver, Sender};
 use ruma::{
 	OwnedEventId, OwnedRoomId, RoomId, UserId,
@@ -19,7 +18,7 @@ use ruma::{
 };
 use tokio::sync::RwLock;
 use tuwunel_core::{
-	Error, PduEvent, Result, Server, debug, err, error, error::default_log, pdu::PduBuilder,
+	Error, Event, Result, Server, debug, err, error, error::default_log, pdu::PduBuilder,
 };
 
 use crate::{Dep, account_data, globals, rooms, rooms::state::RoomMutexGuard};
@@ -140,6 +139,13 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	/// Sends markdown notice to the admin room as the admin user.
+	pub async fn notice(&self, body: &str) {
+		self.send_message(RoomMessageEventContent::notice_markdown(body))
+			.await
+			.ok();
+	}
+
 	/// Sends markdown message (not an m.notice for notification reasons) to the
 	/// admin room as the admin user.
 	pub async fn send_text(&self, body: &str) {
@@ -168,7 +174,7 @@ impl Service {
 			.map_err(|e| err!("Failed to enqueue admin command: {e:?}"))
 	}
 
-	/// Dispatches a comamnd to the processor on the current task and waits for
+	/// Dispatches a command to the processor on the current task and waits for
 	/// completion.
 	pub async fn command_in_place(
 		&self,
@@ -275,13 +281,13 @@ impl Service {
 			return Ok(());
 		};
 
-		let response_sender = if self.is_admin_room(&pdu.room_id).await {
+		let response_sender = if self.is_admin_room(pdu.room_id()).await {
 			&self.services.globals.server_user
 		} else {
-			&pdu.sender
+			pdu.sender()
 		};
 
-		self.respond_to_room(content, &pdu.room_id, response_sender)
+		self.respond_to_room(content, pdu.room_id(), response_sender)
 			.boxed()
 			.await
 	}
@@ -331,7 +337,10 @@ impl Service {
 		Ok(())
 	}
 
-	pub async fn is_admin_command(&self, pdu: &PduEvent, body: &str) -> bool {
+	pub async fn is_admin_command<E>(&self, event: &E, body: &str) -> bool
+	where
+		E: Event + Send + Sync,
+	{
 		// Server-side command-escape with public echo
 		let is_escape = body.starts_with('\\');
 		let is_public_escape = is_escape
@@ -349,8 +358,13 @@ impl Service {
 			return false;
 		}
 
+		let user_is_local = self
+			.services
+			.globals
+			.user_is_local(event.sender());
+
 		// only allow public escaped commands by local admins
-		if is_public_escape && !self.services.globals.user_is_local(&pdu.sender) {
+		if is_public_escape && !user_is_local {
 			return false;
 		}
 
@@ -360,12 +374,12 @@ impl Service {
 		}
 
 		// Prevent unescaped !admin from being used outside of the admin room
-		if is_public_prefix && !self.is_admin_room(&pdu.room_id).await {
+		if is_public_prefix && !self.is_admin_room(event.room_id()).await {
 			return false;
 		}
 
 		// Only senders who are admin can proceed
-		if !self.user_is_admin(&pdu.sender).await {
+		if !self.user_is_admin(event.sender()).await {
 			return false;
 		}
 
@@ -377,8 +391,8 @@ impl Service {
 			.config
 			.emergency_password
 			.is_some();
-		let from_server = pdu.sender == *server_user && !emergency_password_set;
-		if from_server && self.is_admin_room(&pdu.room_id).await {
+		let from_server = event.sender() == server_user && !emergency_password_set;
+		if from_server && self.is_admin_room(event.room_id()).await {
 			return false;
 		}
 

@@ -136,7 +136,10 @@ fn deserialize_legacy_power_levels(content: &str) -> Option<RoomPowerLevelsEvent
 
 #[derive(Deserialize)]
 pub(crate) struct PowerLevelsContentFields {
-	#[serde(default, deserialize_with = "vec_deserialize_v1_powerlevel_values")]
+	#[serde(
+		default,
+		deserialize_with = "vec_deserialize_v1_powerlevel_values"
+	)]
 	pub(crate) users: Vec<(OwnedUserId, Int)>,
 
 	#[serde(default, deserialize_with = "deserialize_v1_powerlevel")]
@@ -159,7 +162,10 @@ impl PowerLevelsContentFields {
 
 #[derive(Deserialize)]
 struct IntPowerLevelsContentFields {
-	#[serde(default, deserialize_with = "vec_deserialize_int_powerlevel_values")]
+	#[serde(
+		default,
+		deserialize_with = "vec_deserialize_int_powerlevel_values"
+	)]
 	users: Vec<(OwnedUserId, Int)>,
 
 	#[serde(default)]
@@ -229,7 +235,10 @@ pub(crate) fn deserialize_power_levels_content_invite(
 
 #[derive(Deserialize)]
 pub(crate) struct PowerLevelsContentRedact {
-	#[serde(default = "default_power_level", deserialize_with = "deserialize_v1_powerlevel")]
+	#[serde(
+		default = "default_power_level",
+		deserialize_with = "deserialize_v1_powerlevel"
+	)]
 	pub(crate) redact: Int,
 }
 

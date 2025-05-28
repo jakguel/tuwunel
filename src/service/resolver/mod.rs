@@ -31,7 +31,11 @@ type NameBuf = ArrayString<256>;
 
 #[async_trait]
 impl crate::Service for Service {
-	#[allow(clippy::as_conversions, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+	#[allow(
+		clippy::as_conversions,
+		clippy::cast_sign_loss,
+		clippy::cast_possible_truncation
+	)]
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		let cache = Cache::new(&args);
 		Ok(Arc::new(Self {

@@ -8,7 +8,11 @@ use ruma::{
 	serde::JsonObject,
 };
 use tuwunel_core::{
-	Err, Error, PduEvent, Result, err, pdu::gen_event_id, utils, utils::hash::sha256, warn,
+	Err, Error, Result, err,
+	matrix::{Event, PduEvent, event::gen_event_id},
+	utils,
+	utils::hash::sha256,
+	warn,
 };
 
 use crate::Ruma;
@@ -64,7 +68,7 @@ pub(crate) async fn create_invite_route(
 	}
 
 	let mut signed_event = utils::to_canonical_object(&body.event)
-		.map_err(|_| Error::BadRequest(ErrorKind::InvalidParam, "Invite event is invalid."))?;
+		.map_err(|_| err!(Request(InvalidParam("Invite event is invalid."))))?;
 
 	let invited_user: OwnedUserId = signed_event
 		.get("state_key")
@@ -125,7 +129,7 @@ pub(crate) async fn create_invite_route(
 	let pdu: PduEvent = serde_json::from_value(event.into())
 		.map_err(|e| err!(Request(BadJson("Invalid invite event PDU: {e}"))))?;
 
-	invite_state.push(pdu.to_stripped_state_event());
+	invite_state.push(pdu.to_format());
 
 	// If we are active in the room, the remote server will notify us about the
 	// join/invite through /send. If we are not in the room, we need to manually
@@ -158,7 +162,7 @@ pub(crate) async fn create_invite_route(
 					.send_appservice_request(
 						appservice.registration.clone(),
 						ruma::api::appservice::event::push_events::v1::Request {
-							events: vec![pdu.to_room_event()],
+							events: vec![pdu.to_format()],
 							txn_id: general_purpose::URL_SAFE_NO_PAD
 								.encode(sha256::hash(pdu.event_id.as_bytes()))
 								.into(),

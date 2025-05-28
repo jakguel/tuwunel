@@ -53,7 +53,7 @@ dockerTools.buildImage {
   copyToRoot = buildEnv {
     name = "root";
     pathsToLink = [
-      "/bin"
+      "/nix/pkgs/complement/bin"
     ];
     paths = [
       bashInteractive

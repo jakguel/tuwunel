@@ -7,7 +7,7 @@ use ruma::{
 };
 use serde_json::json;
 use tuwunel_core::{
-	Result, err,
+	Event, Result, err,
 	matrix::pdu::{PduCount, PduEvent, PduId, RawPduId},
 	utils::{
 		ReadyExt,
@@ -51,7 +51,10 @@ impl crate::Service for Service {
 }
 
 impl Service {
-	pub async fn add_to_thread(&self, root_event_id: &EventId, pdu: &PduEvent) -> Result<()> {
+	pub async fn add_to_thread<E>(&self, root_event_id: &EventId, event: &E) -> Result
+	where
+		E: Event + Send + Sync,
+	{
 		let root_id = self
 			.services
 			.timeline
@@ -88,7 +91,7 @@ impl Service {
 				}) {
 				// Thread already existed
 				relations.count = relations.count.saturating_add(uint!(1));
-				relations.latest_event = pdu.to_message_like_event();
+				relations.latest_event = event.to_format();
 
 				let content = serde_json::to_value(relations).expect("to_value always works");
 
@@ -101,7 +104,7 @@ impl Service {
 			} else {
 				// New thread
 				let relations = BundledThread {
-					latest_event: pdu.to_message_like_event(),
+					latest_event: event.to_format(),
 					count: uint!(1),
 					current_user_participated: true,
 				};
@@ -118,7 +121,7 @@ impl Service {
 
 			self.services
 				.timeline
-				.replace_pdu(&root_id, &root_pdu_json, &root_pdu)
+				.replace_pdu(&root_id, &root_pdu_json)
 				.await?;
 		}
 
@@ -128,10 +131,10 @@ impl Service {
 				users.extend_from_slice(&userids);
 			},
 			| _ => {
-				users.push(root_pdu.sender);
+				users.push(root_pdu.sender().to_owned());
 			},
 		}
-		users.push(pdu.sender.clone());
+		users.push(event.sender().to_owned());
 
 		self.update_participants(&root_id, &users)
 	}
@@ -169,10 +172,10 @@ impl Service {
 					.get_pdu_from_id(&pdu_id)
 					.await
 					.ok()?;
-				let pdu_id: PduId = pdu_id.into();
 
-				if pdu.sender != user_id {
-					pdu.remove_transaction_id().ok();
+				let pdu_id: PduId = pdu_id.into();
+				if pdu.sender() != user_id {
+					pdu.as_mut_pdu().remove_transaction_id().ok();
 				}
 
 				Some((pdu_id.shorteventid, pdu))

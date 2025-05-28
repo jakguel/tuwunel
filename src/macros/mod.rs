@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_macros)]
+
 mod admin;
 mod cargo;
 mod config;

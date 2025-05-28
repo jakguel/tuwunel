@@ -1,15 +1,15 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use futures::{StreamExt, TryStreamExt, future::join3};
+use futures::{
+	StreamExt, TryStreamExt,
+	future::{join, join3, join4},
+};
 use ruma::{
 	OwnedMxcUri, OwnedRoomId, UserId,
 	api::{
-		client::{
-			error::ErrorKind,
-			profile::{
-				get_avatar_url, get_display_name, get_profile, set_avatar_url, set_display_name,
-			},
+		client::profile::{
+			get_avatar_url, get_display_name, get_profile, set_avatar_url, set_display_name,
 		},
 		federation,
 	},
@@ -17,9 +17,9 @@ use ruma::{
 	presence::PresenceState,
 };
 use tuwunel_core::{
-	Err, Error, Result,
+	Err, Result,
 	matrix::pdu::PduBuilder,
-	utils::{IterStream, stream::TryIgnore},
+	utils::{IterStream, future::TryExtExt, stream::TryIgnore},
 	warn,
 };
 use tuwunel_service::Services;
@@ -35,10 +35,7 @@ pub(crate) async fn set_displayname_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_display_name::v3::Request>,
 ) -> Result<set_display_name::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	if *sender_user != body.user_id && body.appservice_info.is_none() {
 		return Err!(Request(Forbidden("You cannot update the profile of another user")));
@@ -90,7 +87,10 @@ pub(crate) async fn get_displayname_route(
 			.await
 		{
 			if !services.users.exists(&body.user_id).await {
-				services.users.create(&body.user_id, None)?;
+				services
+					.users
+					.create(&body.user_id, None, None)
+					.await?;
 			}
 
 			services
@@ -110,7 +110,7 @@ pub(crate) async fn get_displayname_route(
 	if !services.users.exists(&body.user_id).await {
 		// Return 404 if this user doesn't exist and we couldn't fetch it over
 		// federation
-		return Err(Error::BadRequest(ErrorKind::NotFound, "Profile was not found."));
+		return Err!(Request(NotFound("Profile was not found.")));
 	}
 
 	Ok(get_display_name::v3::Response {
@@ -131,10 +131,7 @@ pub(crate) async fn set_avatar_url_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_avatar_url::v3::Request>,
 ) -> Result<set_avatar_url::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	if *sender_user != body.user_id && body.appservice_info.is_none() {
 		return Err!(Request(Forbidden("You cannot update the profile of another user")));
@@ -193,17 +190,18 @@ pub(crate) async fn get_avatar_url_route(
 			.await
 		{
 			if !services.users.exists(&body.user_id).await {
-				services.users.create(&body.user_id, None)?;
+				services
+					.users
+					.create(&body.user_id, None, None)
+					.await?;
 			}
 
 			services
 				.users
 				.set_displayname(&body.user_id, response.displayname.clone());
-
 			services
 				.users
 				.set_avatar_url(&body.user_id, response.avatar_url.clone());
-
 			services
 				.users
 				.set_blurhash(&body.user_id, response.blurhash.clone());
@@ -218,17 +216,16 @@ pub(crate) async fn get_avatar_url_route(
 	if !services.users.exists(&body.user_id).await {
 		// Return 404 if this user doesn't exist and we couldn't fetch it over
 		// federation
-		return Err(Error::BadRequest(ErrorKind::NotFound, "Profile was not found."));
+		return Err!(Request(NotFound("Profile was not found.")));
 	}
 
-	Ok(get_avatar_url::v3::Response {
-		avatar_url: services
-			.users
-			.avatar_url(&body.user_id)
-			.await
-			.ok(),
-		blurhash: services.users.blurhash(&body.user_id).await.ok(),
-	})
+	let (avatar_url, blurhash) = join(
+		services.users.avatar_url(&body.user_id).ok(),
+		services.users.blurhash(&body.user_id).ok(),
+	)
+	.await;
+
+	Ok(get_avatar_url::v3::Response { avatar_url, blurhash })
 }
 
 /// # `GET /_matrix/client/v3/profile/{userId}`
@@ -255,21 +252,21 @@ pub(crate) async fn get_profile_route(
 			.await
 		{
 			if !services.users.exists(&body.user_id).await {
-				services.users.create(&body.user_id, None)?;
+				services
+					.users
+					.create(&body.user_id, None, None)
+					.await?;
 			}
 
 			services
 				.users
 				.set_displayname(&body.user_id, response.displayname.clone());
-
 			services
 				.users
 				.set_avatar_url(&body.user_id, response.avatar_url.clone());
-
 			services
 				.users
 				.set_blurhash(&body.user_id, response.blurhash.clone());
-
 			services
 				.users
 				.set_timezone(&body.user_id, response.tz.clone());
@@ -295,7 +292,7 @@ pub(crate) async fn get_profile_route(
 	if !services.users.exists(&body.user_id).await {
 		// Return 404 if this user doesn't exist and we couldn't fetch it over
 		// federation
-		return Err(Error::BadRequest(ErrorKind::NotFound, "Profile was not found."));
+		return Err!(Request(NotFound("Profile was not found.")));
 	}
 
 	let mut custom_profile_fields: BTreeMap<String, serde_json::Value> = services
@@ -308,19 +305,19 @@ pub(crate) async fn get_profile_route(
 	custom_profile_fields.remove("us.cloke.msc4175.tz");
 	custom_profile_fields.remove("m.tz");
 
+	let (avatar_url, blurhash, displayname, tz) = join4(
+		services.users.avatar_url(&body.user_id).ok(),
+		services.users.blurhash(&body.user_id).ok(),
+		services.users.displayname(&body.user_id).ok(),
+		services.users.timezone(&body.user_id).ok(),
+	)
+	.await;
+
 	Ok(get_profile::v3::Response {
-		avatar_url: services
-			.users
-			.avatar_url(&body.user_id)
-			.await
-			.ok(),
-		blurhash: services.users.blurhash(&body.user_id).await.ok(),
-		displayname: services
-			.users
-			.displayname(&body.user_id)
-			.await
-			.ok(),
-		tz: services.users.timezone(&body.user_id).await.ok(),
+		avatar_url,
+		blurhash,
+		displayname,
+		tz,
 		custom_profile_fields,
 	})
 }
@@ -332,15 +329,11 @@ pub async fn update_displayname(
 	all_joined_rooms: &[OwnedRoomId],
 ) {
 	let (current_avatar_url, current_blurhash, current_displayname) = join3(
-		services.users.avatar_url(user_id),
-		services.users.blurhash(user_id),
-		services.users.displayname(user_id),
+		services.users.avatar_url(user_id).ok(),
+		services.users.blurhash(user_id).ok(),
+		services.users.displayname(user_id).ok(),
 	)
 	.await;
-
-	let current_avatar_url = current_avatar_url.ok();
-	let current_blurhash = current_blurhash.ok();
-	let current_displayname = current_displayname.ok();
 
 	if displayname == current_displayname {
 		return;
@@ -389,15 +382,11 @@ pub async fn update_avatar_url(
 	all_joined_rooms: &[OwnedRoomId],
 ) {
 	let (current_avatar_url, current_blurhash, current_displayname) = join3(
-		services.users.avatar_url(user_id),
-		services.users.blurhash(user_id),
-		services.users.displayname(user_id),
+		services.users.avatar_url(user_id).ok(),
+		services.users.blurhash(user_id).ok(),
+		services.users.displayname(user_id).ok(),
 	)
 	.await;
-
-	let current_avatar_url = current_avatar_url.ok();
-	let current_blurhash = current_blurhash.ok();
-	let current_displayname = current_displayname.ok();
 
 	if current_avatar_url == avatar_url && current_blurhash == blurhash {
 		return;

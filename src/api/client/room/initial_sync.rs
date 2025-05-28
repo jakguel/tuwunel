@@ -1,8 +1,8 @@
 use axum::extract::State;
-use futures::TryStreamExt;
+use futures::{FutureExt, TryStreamExt, future::try_join4};
 use ruma::api::client::room::initial_sync::v3::{PaginationChunk, Request, Response};
 use tuwunel_core::{
-	Err, PduEvent, Result, at,
+	Err, Event, Result, at,
 	utils::{BoolExt, stream::TryTools},
 };
 
@@ -25,22 +25,37 @@ pub(crate) async fn room_initial_sync_route(
 		return Err!(Request(Forbidden("No room preview available.")));
 	}
 
+	let membership = services
+		.rooms
+		.state_cache
+		.user_membership(body.sender_user(), room_id)
+		.map(Ok);
+
+	let visibility = services
+		.rooms
+		.directory
+		.visibility(room_id)
+		.map(Ok);
+
+	let state = services
+		.rooms
+		.state_accessor
+		.room_state_full_pdus(room_id)
+		.map_ok(Event::into_format)
+		.try_collect::<Vec<_>>();
+
 	let limit = LIMIT_MAX;
-	let events: Vec<_> = services
+	let events = services
 		.rooms
 		.timeline
 		.pdus_rev(None, room_id, None)
 		.try_take(limit)
-		.try_collect()
-		.await?;
+		.try_collect::<Vec<_>>();
 
-	let state: Vec<_> = services
-		.rooms
-		.state_accessor
-		.room_state_full_pdus(room_id)
-		.map_ok(PduEvent::into_state_event)
-		.try_collect()
-		.await?;
+	let (membership, visibility, state, events) =
+		try_join4(membership, visibility, state, events)
+			.boxed()
+			.await?;
 
 	let messages = PaginationChunk {
 		start: events
@@ -59,7 +74,7 @@ pub(crate) async fn room_initial_sync_route(
 		chunk: events
 			.into_iter()
 			.map(at!(1))
-			.map(PduEvent::into_room_event)
+			.map(Event::into_format)
 			.collect(),
 	};
 
@@ -68,16 +83,7 @@ pub(crate) async fn room_initial_sync_route(
 		account_data: None,
 		state: state.into(),
 		messages: messages.chunk.is_empty().or_some(messages),
-		visibility: services
-			.rooms
-			.directory
-			.visibility(room_id)
-			.await
-			.into(),
-		membership: services
-			.rooms
-			.state_cache
-			.user_membership(body.sender_user(), room_id)
-			.await,
+		visibility: visibility.into(),
+		membership,
 	})
 }

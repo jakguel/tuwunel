@@ -10,7 +10,7 @@ use tuwunel_core::{
 	Error, Result, err, implement,
 	state_res::{self, StateMap},
 	trace,
-	utils::stream::{IterStream, ReadyExt, TryWidebandExt, WidebandExt, automatic_width},
+	utils::stream::{IterStream, ReadyExt, TryWidebandExt, WidebandExt},
 };
 
 use crate::rooms::state_compressor::CompressedState;
@@ -116,14 +116,7 @@ where
 {
 	let event_fetch = |event_id| self.event_fetch(event_id);
 	let event_exists = |event_id| self.event_exists(event_id);
-	state_res::resolve(
-		room_version,
-		state_sets,
-		auth_chain_sets,
-		&event_fetch,
-		&event_exists,
-		automatic_width(),
-	)
-	.map_err(|e| err!(error!("State resolution failed: {e:?}")))
-	.await
+	state_res::resolve(room_version, state_sets, auth_chain_sets, &event_fetch, &event_exists)
+		.map_err(|e| err!(error!("State resolution failed: {e:?}")))
+		.await
 }

@@ -1,5 +1,6 @@
-# conduwuit for FreeBSD
+# Tuwunel for FreeBSD
 
-conduwuit at the moment does not provide FreeBSD builds or have FreeBSD packaging, however conduwuit does build and work on FreeBSD using the system-provided RocksDB.
+Tuwunel at the moment does not provide FreeBSD builds or have FreeBSD packaging, however Tuwunel does
+build and work on FreeBSD using the system-provided RocksDB.
 
-Contributions for getting conduwuit packaged are welcome.
+Contributions for getting Tuwunel into ports are welcome.

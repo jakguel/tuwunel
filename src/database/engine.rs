@@ -134,7 +134,12 @@ impl Engine {
 
 	#[inline]
 	#[must_use]
-	#[tracing::instrument(name = "sequence", level = "debug", skip_all, fields(sequence))]
+	#[tracing::instrument(
+		name = "sequence",
+		level = "debug",
+		skip_all,
+		fields(sequence)
+	)]
 	pub fn current_sequence(&self) -> u64 {
 		let sequence = self.db.latest_sequence_number();
 

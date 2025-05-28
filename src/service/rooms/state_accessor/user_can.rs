@@ -9,7 +9,7 @@ use ruma::{
 		},
 	},
 };
-use tuwunel_core::{Err, Result, implement, pdu::PduBuilder};
+use tuwunel_core::{Err, Result, implement, matrix::Event, pdu::PduBuilder};
 
 use crate::rooms::state::RoomMutexGuard;
 
@@ -29,14 +29,14 @@ pub async fn user_can_redact(
 
 	if redacting_event
 		.as_ref()
-		.is_ok_and(|pdu| pdu.kind == TimelineEventType::RoomCreate)
+		.is_ok_and(|pdu| *pdu.kind() == TimelineEventType::RoomCreate)
 	{
 		return Err!(Request(Forbidden("Redacting m.room.create is not safe, forbidding.")));
 	}
 
 	if redacting_event
 		.as_ref()
-		.is_ok_and(|pdu| pdu.kind == TimelineEventType::RoomServerAcl)
+		.is_ok_and(|pdu| *pdu.kind() == TimelineEventType::RoomServerAcl)
 	{
 		return Err!(Request(Forbidden(
 			"Redacting m.room.server_acl will result in the room being inaccessible for \
@@ -57,13 +57,12 @@ pub async fn user_can_redact(
 			Ok(pl_event.user_can_redact_event_of_other(sender)
 				|| pl_event.user_can_redact_own_event(sender)
 					&& match redacting_event {
-						| Ok(redacting_event) => {
+						| Ok(redacting_event) =>
 							if federation {
-								redacting_event.sender.server_name() == sender.server_name()
+								redacting_event.sender().server_name() == sender.server_name()
 							} else {
-								redacting_event.sender == sender
-							}
-						},
+								redacting_event.sender() == sender
+							},
 						| _ => false,
 					})
 		},
@@ -73,10 +72,10 @@ pub async fn user_can_redact(
 				.room_state_get(room_id, &StateEventType::RoomCreate, "")
 				.await
 			{
-				| Ok(room_create) => Ok(room_create.sender == sender
+				| Ok(room_create) => Ok(room_create.sender() == sender
 					|| redacting_event
 						.as_ref()
-						.is_ok_and(|redacting_event| redacting_event.sender == sender)),
+						.is_ok_and(|redacting_event| redacting_event.sender() == sender)),
 				| _ => Err!(Database(
 					"No m.room.power_levels or m.room.create events in database for room"
 				)),
@@ -150,12 +149,11 @@ pub async fn user_can_see_state_events(&self, user_id: &UserId, room_id: &RoomId
 		});
 
 	match history_visibility {
-		| HistoryVisibility::Invited => {
+		| HistoryVisibility::Invited =>
 			self.services
 				.state_cache
 				.is_invited(user_id, room_id)
-				.await
-		},
+				.await,
 		| HistoryVisibility::WorldReadable => true,
 		| _ => false,
 	}

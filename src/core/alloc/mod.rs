@@ -6,7 +6,11 @@ pub mod je;
 #[cfg(all(not(target_env = "msvc"), feature = "jemalloc"))]
 pub use je::{memory_stats, memory_usage, trim};
 
-#[cfg(all(not(target_env = "msvc"), feature = "hardened_malloc", not(feature = "jemalloc")))]
+#[cfg(all(
+	not(target_env = "msvc"),
+	feature = "hardened_malloc",
+	not(feature = "jemalloc")
+))]
 pub mod hardened;
 #[cfg(all(
 	not(target_env = "msvc"),

@@ -78,6 +78,7 @@ http-body-util.workspace = true
 http.workspace = true
 ipaddress.workspace = true
 itertools.workspace = true
+ldap3.workspace = true
 libc.workspace = true
 libloading.workspace = true
 libloading.optional = true

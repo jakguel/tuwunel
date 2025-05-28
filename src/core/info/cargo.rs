@@ -36,7 +36,7 @@ const MAIN_MANIFEST: &'static str = ();
 /// For *enabled* features see the info::rustc module instead.
 static FEATURES: OnceLock<Vec<String>> = OnceLock::new();
 
-/// Processed list of dependencies. This is generated from the datas captured in
+/// Processed list of dependencies. This is generated from the data captured in
 /// the MANIFEST.
 static DEPENDENCIES: OnceLock<DepsSet> = OnceLock::new();
 
@@ -87,10 +87,12 @@ fn append_features(features: &mut Vec<String>, manifest: &str) -> Result<()> {
 
 fn init_dependencies() -> Result<DepsSet> {
 	let manifest = Manifest::from_str(WORKSPACE_MANIFEST)?;
-	Ok(manifest
+	let deps_set = manifest
 		.workspace
 		.as_ref()
 		.expect("manifest has workspace section")
 		.dependencies
-		.clone())
+		.clone();
+
+	Ok(deps_set)
 }

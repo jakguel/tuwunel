@@ -3,10 +3,9 @@
 FROM input AS source
 ARG git_checkout
 
-ADD --keep-git-dir . /usr/src/conduwuit
-WORKDIR /usr/src/conduwuit
+ADD --keep-git-dir . /usr/src/tuwunel
+WORKDIR /usr/src/tuwunel
 RUN <<EOF
-    env
     set -eux
     git reset \
         --hard \
@@ -21,17 +20,19 @@ ARG rust_toolchain
 ARG RUSTUP_HOME
 ARG CARGO_HOME
 ARG CARGO_TARGET
-ARG CARGO_TARGET_DIR
+ARG CARGO_TERM_VERBOSE=0
 
-WORKDIR /usr/src/conduwuit
-COPY --link --from=source /usr/src/conduwuit .
+WORKDIR /
+COPY --link --from=input . .
 
+WORKDIR /usr/src/tuwunel
+COPY --link --from=source /usr/src/tuwunel .
+
+ENV CARGO_TERM_VERBOSE="${CARGO_TERM_VERBOSE}"
 RUN \
 --mount=type=cache,dst=${RUSTUP_HOME},sharing=locked \
 --mount=type=cache,dst=${CARGO_HOME},sharing=locked \
---mount=type=cache,dst=${CARGO_TARGET_DIR},sharing=locked \
 <<EOF
-    env
     set -eux
     git submodule update \
         --remote \
@@ -52,15 +53,12 @@ ARG rust_toolchain
 ARG RUSTUP_HOME
 ARG CARGO_HOME
 ARG CARGO_TARGET
-ARG CARGO_TARGET_DIR
 
-WORKDIR /usr/src/conduwuit
+WORKDIR /usr/src/tuwunel
 RUN \
 --mount=type=cache,dst=${RUSTUP_HOME},sharing=locked \
 --mount=type=cache,dst=${CARGO_HOME},sharing=locked \
---mount=type=cache,dst=${CARGO_TARGET_DIR},sharing=locked \
 <<EOF
-    env
     set -euxo pipefail
     rustup run ${rust_toolchain} \
         cargo chef prepare \
@@ -79,5 +77,5 @@ EOF
 FROM scratch AS recipe
 
 WORKDIR /
-COPY --from=preparing /usr/src/conduwuit/recipe.json .
-COPY --from=preparing /usr/src/conduwuit/rocksdb.url .
+COPY --from=preparing /usr/src/tuwunel/recipe.json .
+COPY --from=preparing /usr/src/tuwunel/rocksdb.url .

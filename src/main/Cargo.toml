@@ -30,8 +30,18 @@ systemd-units = { unit-name = "tuwunel", start = false }
 assets = [
 	["../../debian/README.md", "usr/share/doc/tuwunel/README.Debian", "644"],
 	["../../README.md", "usr/share/doc/tuwunel/", "644"],
-	["../../target/release/tuwunel", "usr/sbin/tuwunel", "755"],
+	["target/release/tuwunel", "usr/sbin/tuwunel", "755"],
 	["../../tuwunel-example.toml", "etc/tuwunel/tuwunel.toml", "640"],
+]
+
+[package.metadata.generate-rpm]
+name = "tuwunel"
+summary = """\
+High performance Matrix homeserver written in Rust"""
+assets = [
+	{ source = "target/release/tuwunel", dest = "/usr/sbin/tuwunel", mode = "755" },
+	{ source = "README.md", dest = "/usr/share/doc/tuwunel/", mode = "644", doc = true },
+	{ source = "tuwunel-example.toml", dest = "/etc/tuwunel/tuwunel.toml", mode = "640", config = "noreplace" },
 ]
 
 [features]
@@ -92,6 +102,10 @@ jemalloc_stats = [
 ]
 jemalloc_conf = [
 	"tuwunel-core/jemalloc_conf",
+]
+ldap = [
+	"tuwunel-api/ldap",
+	"tuwunel-service/ldap",
 ]
 media_thumbnail = [
 	"tuwunel-service/media_thumbnail",

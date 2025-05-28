@@ -3,9 +3,10 @@ set -e
 
 #. /usr/share/debconf/confmodule
 
-CONDUWUIT_CONFIG_PATH=/etc/conduwuit
-CONDUWUIT_DATABASE_PATH=/var/lib/conduwuit
-CONDUWUIT_DATABASE_PATH_SYMLINK=/var/lib/matrix-conduit
+TUWUNEL_CONFIG_PATH=/etc/tuwunel
+TUWUNEL_DATABASE_PATH=/var/lib/tuwunel
+CONDUIT_DATABASE_PATH_SYMLINK=/var/lib/matrix-conduit
+CONDUWUIT_DATABASE_PATH_SYMLINK=/var/lib/conduwuit
 
 case $1 in
   purge)
@@ -18,23 +19,30 @@ case $1 in
 
     #
 
-    if [ -d "$CONDUWUIT_CONFIG_PATH" ]; then
-      if test -L "$CONDUWUIT_CONFIG_PATH"; then
-        echo "Deleting conduwuit configuration files"
-        rm -v -r "$CONDUWUIT_CONFIG_PATH"
+    if [ -d "$TUWUNEL_CONFIG_PATH" ]; then
+      if test -L "$TUWUNEL_CONFIG_PATH"; then
+        echo "Deleting tuwunel configuration files"
+        rm -v -r "$TUWUNEL_CONFIG_PATH"
       fi
     fi
 
-    if [ -d "$CONDUWUIT_DATABASE_PATH" ]; then
-      if test -L "$CONDUWUIT_DATABASE_PATH"; then
-        echo "Deleting conduwuit database directory"
-        rm -r "$CONDUWUIT_DATABASE_PATH"
+    if [ -d "$TUWUNEL_DATABASE_PATH" ]; then
+      if test -L "$TUWUNEL_DATABASE_PATH"; then
+        echo "Deleting tuwunel database directory"
+        rm -r "$TUWUNEL_DATABASE_PATH"
+      fi
+    fi
+
+    if [ -d "$CONDUIT_DATABASE_PATH_SYMLINK" ]; then
+      if test -L "$CONDUIT_DATABASE_SYMLINK"; then
+        echo "Removing matrix-conduit symlink"
+        rm -r "$CONDUIT_DATABASE_PATH_SYMLINK"
       fi
     fi
 
     if [ -d "$CONDUWUIT_DATABASE_PATH_SYMLINK" ]; then
       if test -L "$CONDUWUIT_DATABASE_SYMLINK"; then
-        echo "Removing matrix-conduit symlink"
+        echo "Removing conduwuit symlink"
         rm -r "$CONDUWUIT_DATABASE_PATH_SYMLINK"
       fi
     fi

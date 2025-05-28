@@ -194,7 +194,7 @@ fn get_cache(ctx: &Context, desc: &Descriptor) -> Option<Cache> {
 		return None;
 	}
 
-	// Some cache capacities are overriden by server config in a strange but
+	// Some cache capacities are overridden by server config in a strange but
 	// legacy-compat way
 	let config = &ctx.server.config;
 	let cap = match desc.name {
@@ -268,7 +268,11 @@ pub(crate) fn cache_size(config: &Config, base_size: u32, entity_size: usize) ->
 	cache_size_f64(config, f64::from(base_size), entity_size)
 }
 
-#[allow(clippy::as_conversions, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+#[allow(
+	clippy::as_conversions,
+	clippy::cast_sign_loss,
+	clippy::cast_possible_truncation
+)]
 pub(crate) fn cache_size_f64(config: &Config, base_size: f64, entity_size: usize) -> usize {
 	let ents = base_size * config.cache_capacity_modifier;
 

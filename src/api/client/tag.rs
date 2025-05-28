@@ -21,10 +21,7 @@ pub(crate) async fn update_tag_route(
 	State(services): State<crate::State>,
 	body: Ruma<create_tag::v3::Request>,
 ) -> Result<create_tag::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	let mut tags_event = services
 		.account_data
@@ -45,7 +42,7 @@ pub(crate) async fn update_tag_route(
 			Some(&body.room_id),
 			sender_user,
 			RoomAccountDataEventType::Tag,
-			&serde_json::to_value(tags_event).expect("to json value always works"),
+			&serde_json::to_value(tags_event)?,
 		)
 		.await?;
 
@@ -61,10 +58,7 @@ pub(crate) async fn delete_tag_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_tag::v3::Request>,
 ) -> Result<delete_tag::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	let mut tags_event = services
 		.account_data
@@ -85,7 +79,7 @@ pub(crate) async fn delete_tag_route(
 			Some(&body.room_id),
 			sender_user,
 			RoomAccountDataEventType::Tag,
-			&serde_json::to_value(tags_event).expect("to json value always works"),
+			&serde_json::to_value(tags_event)?,
 		)
 		.await?;
 
@@ -101,10 +95,7 @@ pub(crate) async fn get_tags_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_tags::v3::Request>,
 ) -> Result<get_tags::v3::Response> {
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	let tags_event = services
 		.account_data
