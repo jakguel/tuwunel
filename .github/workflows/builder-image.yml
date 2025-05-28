@@ -41,6 +41,7 @@ jobs:
                   liburing2 \
                   libzstd1 \
                   libjemalloc2 \
+                  gh \
                   "
                   RUN apt-get update && apt-get -y install --no-install-recommends \$packages
                   EOF
