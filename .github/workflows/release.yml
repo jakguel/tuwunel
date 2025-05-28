@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: self-hosted
     container:
-      image: ghcr.io/jakguel/tuwunel-builder:1.86
+      image: ghcr.io/jakguel/tuwunel-builder:1.86@sha256:fd81075c65991bc7eeee42a3c85a62e88d75d28bf0ea1bb8ec8454540c198b64
       volumes:
         - cache_volume:/home/ubuntu/.cache/
       #        - cache_cargo_bin:/usr/local/cargo/bin
