@@ -1,0 +1,86 @@
+name: Rust Build and Release
+
+on:
+  push:
+    branches:
+      - cicd/release
+
+jobs:
+  build:
+    runs-on: self-hosted
+    container:
+      image: ghcr.io/jakguel/tuwunel-builder:1.86
+      volumes:
+        - cache_volume:/home/ubuntu/.cache/
+      #        - cache_cargo_bin:/usr/local/cargo/bin
+      #        - cache_cargo_registry_index:/usr/local/cargo/registry/index
+      #        - cache_cargo_registry_cache:/usr/local/cargo/registry/cache
+      #        - cache_cargo_git_db:/usr/local/cargo/git/db
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      #- name: Cache Cargo registry and build
+      #  uses: actions/cache@v4
+      #  with:
+      #    path: |
+      #      /usr/local/cargo/registry
+      #      /usr/local/cargo/git
+      #      target
+      #    key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      #    restore-keys: |
+      #      ${{ runner.os }}-cargo-
+
+      - name: Cache Cargo registry and build
+        uses: jakguel/local-cache@v1
+        id: cargo-cache
+        with:
+          path: /usr/local/cargo
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+#         todo: add branch name to this key
+
+      - name: Cache Cargo registry and build
+        uses: jakguel/local-cache@v1
+        id: build-cache
+        with:
+          path: target
+          key: build-${{ hashFiles('**/Cargo.lock') }}
+#         todo: add branch name to this key
+
+      - name: Clean up Cargo cache
+        run: |
+          cargo fetch --locked
+
+      - name: Build release profile
+        run: |
+          cargo build --release --all-features
+
+      - name: Prepare release artefacts
+        uses: mathiasvr/command-output@v2.0.0
+        id: artifacts
+        with:
+          run: |
+            eval export WORKSPACE=$PWD
+            mkdir -p /release
+            cd $WORKSPACE/target/release
+            find -maxdepth 1 -mindepth 1 -type d -not -ipath './.fingerprint*' -not -ipath './build*' -not -ipath './deps*' -not -ipath './incremental*' -exec cp -r '{}' '/release' ';'
+            find -maxdepth 1 -type f -not -ipath './.fingerprint*' -not -ipath './build*' -not -ipath './deps*' -not -ipath './incremental*' -exec cp '{}' '/release' ';'
+
+      - run: echo ${{ steps.artifacts.outputs.stdout }}
+
+      - name: Upload release artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: /release
+
+
+
+#      - name: Build release-debuginfo profile
+#        run: |
+#          cargo build --profile release-debuginfo --all-features
+#
+#          cd ${ GITHUB_WORKSPACE }/target/release-debuginfo
+#          find . -maxdepth 2 -mindepth 2 \( -type f -o -type d \) \
+#          ! -path "./.fingerprint*" ! -path "./build*" ! -path "./deps*" ! -path "./incremental*" \
+#          -exec cp -r '{}' /release-debuginfo ';'
